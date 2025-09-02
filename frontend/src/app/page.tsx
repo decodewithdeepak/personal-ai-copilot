@@ -240,42 +240,42 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-black">
       <div className="container mx-auto p-6">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-            <Bot className="h-8 w-8 text-purple-400" />
-            Personal AI Copilot
-          </h1>
-          <p className="text-slate-300">Your intelligent assistant for productivity and insights</p>
+        <header className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Bot className="h-8 w-8 text-blue-500" />
+            <h1 className="text-3xl font-bold text-white">Personal AI Copilot</h1>
+          </div>
+          <p className="text-zinc-400">Your intelligent assistant for productivity and insights</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daily Briefing */}
-          <Card className="lg:col-span-2 bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-yellow-400" />
+                <Sparkles className="h-5 w-5 text-yellow-500" />
                 Daily Briefing
               </CardTitle>
-              <CardDescription className="text-slate-300">
+              <CardDescription className="text-zinc-400">
                 AI-generated insights and priorities for today
               </CardDescription>
             </CardHeader>
             <CardContent>
               {briefing ? (
-                <div className="prose prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-slate-200 font-sans">
+                <div className="prose max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm text-zinc-200 font-sans">
                     {briefing}
                   </pre>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-slate-400 mb-4">No briefing generated yet</p>
+                  <p className="text-zinc-500 mb-4">No briefing generated yet</p>
                   <Button
                     onClick={generateBriefing}
                     disabled={loading}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-white text-black hover:bg-zinc-200"
                   >
                     {loading ? 'Generating...' : 'Generate Daily Briefing'}
                   </Button>
@@ -285,26 +285,26 @@ export default function Dashboard() {
           </Card>
 
           {/* Quick Stats */}
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="bg-zinc-950 border border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-400" />
+                <Calendar className="h-5 w-5 text-blue-500" />
                 Quick Overview
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-slate-300">Total Tasks</span>
-                <Badge variant="secondary">{tasks.length}</Badge>
+                <span className="text-zinc-400">Total Tasks</span>
+                <Badge variant="secondary" className="bg-zinc-800 text-zinc-200">{tasks.length}</Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-300">High Priority</span>
+                <span className="text-zinc-400">High Priority</span>
                 <Badge className="bg-red-500">
                   {tasks.filter(t => t.priority === 'high').length}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-300">Unread Notifications</span>
+                <span className="text-zinc-400">Unread Notifications</span>
                 <Badge className="bg-orange-500">
                   {notifications.filter(n => !n.read).length}
                 </Badge>
@@ -313,10 +313,10 @@ export default function Dashboard() {
           </Card>
 
           {/* Tasks Management */}
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="bg-zinc-950 border border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-green-400" />
+                <CheckSquare className="h-5 w-5 text-green-500" />
                 Tasks
               </CardTitle>
             </CardHeader>
@@ -327,19 +327,19 @@ export default function Dashboard() {
                     placeholder="Task title..."
                     value={newTask.title}
                     onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                    className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
+                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
                   />
                   <Textarea
                     placeholder="Description (optional)..."
                     value={newTask.description}
                     onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                    className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
+                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
                   />
                   <div className="flex gap-2">
                     <select
                       value={newTask.priority}
                       onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                      className="flex-1 bg-white/5 border border-white/20 rounded-md px-3 py-2 text-white"
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white"
                     >
                       <option value="low">Low Priority</option>
                       <option value="medium">Medium Priority</option>
@@ -353,22 +353,22 @@ export default function Dashboard() {
 
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {tasks.slice(0, 5).map((task) => (
-                    <div key={task.id} className="p-3 bg-white/5 rounded-lg border border-white/10">
+                    <div key={task.id} className="p-3 bg-zinc-900 rounded-lg border border-zinc-800">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="text-white font-medium text-sm">{task.title}</h4>
                           {task.description && (
-                            <p className="text-slate-400 text-xs mt-1">{task.description}</p>
+                            <p className="text-zinc-400 text-xs mt-1">{task.description}</p>
                           )}
                         </div>
                         <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)} ml-2 mt-1`} />
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-300">
                           {task.status}
                         </Badge>
                         {task.due_date && (
-                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                          <span className="text-xs text-zinc-400 flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {new Date(task.due_date).toLocaleDateString()}
                           </span>
@@ -382,21 +382,21 @@ export default function Dashboard() {
           </Card>
 
           {/* AI Chat */}
-          <Card className="lg:col-span-2 bg-white/10 backdrop-blur-sm border-white/20">
+          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-purple-400" />
+                <MessageSquare className="h-5 w-5 text-purple-500" />
                 AI Assistant
               </CardTitle>
-              <CardDescription className="text-slate-300">
+              <CardDescription className="text-zinc-400">
                 Chat with your AI copilot for insights and assistance
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="h-64 overflow-y-auto space-y-3 bg-white/5 rounded-lg p-4 border border-white/10">
+                <div className="h-64 overflow-y-auto space-y-3 bg-zinc-900 rounded-lg p-4 border border-zinc-800">
                   {chatMessages.length === 0 ? (
-                    <p className="text-slate-400 text-center py-8">
+                    <p className="text-zinc-500 text-center py-8">
                       Start a conversation with your AI assistant
                     </p>
                   ) : (
@@ -405,20 +405,20 @@ export default function Dashboard() {
                         {msg.isUser ? (
                           <div className="flex justify-end">
                             <div className="flex items-start gap-2 max-w-xs">
-                              <div className="bg-purple-600 text-white p-2 rounded-lg text-sm">
+                              <div className="bg-blue-600 text-white p-2 rounded-lg text-sm">
                                 {msg.message}
                               </div>
-                              <User className="h-6 w-6 text-purple-400 mt-1" />
+                              <User className="h-6 w-6 text-blue-500 mt-1" />
                             </div>
                           </div>
                         ) : (
                           <div className="flex justify-start">
                             <div className="flex items-start gap-2 max-w-lg">
-                              <Bot className="h-6 w-6 text-blue-400 mt-1" />
-                              <div className="bg-white/10 text-white p-2 rounded-lg text-sm">
-                                <div className="font-medium text-blue-300 mb-1">You:</div>
+                              <Bot className="h-6 w-6 text-green-500 mt-1" />
+                              <div className="bg-zinc-800 text-zinc-200 p-2 rounded-lg text-sm">
+                                <div className="font-medium text-blue-400 mb-1">You:</div>
                                 <div className="mb-2">{msg.message}</div>
-                                <div className="font-medium text-green-300 mb-1">AI:</div>
+                                <div className="font-medium text-green-400 mb-1">AI:</div>
                                 <div>{msg.response}</div>
                               </div>
                             </div>
@@ -430,8 +430,8 @@ export default function Dashboard() {
                   {loading && (
                     <div className="flex justify-start">
                       <div className="flex items-start gap-2">
-                        <Bot className="h-6 w-6 text-blue-400 mt-1" />
-                        <div className="bg-white/10 text-white p-2 rounded-lg text-sm">
+                        <Bot className="h-6 w-6 text-green-500 mt-1" />
+                        <div className="bg-zinc-800 text-zinc-200 p-2 rounded-lg text-sm">
                           AI is thinking...
                         </div>
                       </div>
@@ -445,12 +445,12 @@ export default function Dashboard() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
-                    className="bg-white/5 border-white/20 text-white placeholder:text-slate-400"
+                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
                   />
                   <Button
                     onClick={sendChatMessage}
                     disabled={loading || !chatInput.trim()}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-white text-black hover:bg-zinc-200"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
