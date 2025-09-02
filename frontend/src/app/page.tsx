@@ -85,16 +85,6 @@ export default function Dashboard() {
       setNotifications(prev => [data, ...prev]);
     });
 
-    socketInstance.on('chat_response', (data) => {
-      setChatMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        message: data.message,
-        response: data.response,
-        timestamp: data.timestamp,
-        isUser: false
-      }]);
-    });
-
     return () => {
       socketInstance.disconnect();
     };
@@ -215,19 +205,25 @@ export default function Dashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        setChatMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          message: data.data.message,
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          message: '',
           response: data.data.response,
           timestamp: new Date().toISOString(),
           isUser: false
-        }]);
+        };
+        setChatMessages(prev => [...prev, aiMessage]);
       }
     } catch (error) {
       console.error('Error sending chat message:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const createNewChat = () => {
+    setChatMessages([]);
+    setChatInput('');
   };
 
   const getPriorityColor = (priority: string) => {
@@ -313,16 +309,16 @@ export default function Dashboard() {
           </Card>
 
           {/* Tasks Management */}
-          <Card className="bg-zinc-950 border border-zinc-800">
-            <CardHeader>
+          <Card className="bg-zinc-950 border border-zinc-800 h-[600px] flex flex-col">
+            <CardHeader className="flex-shrink-0">
               <CardTitle className="text-white flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-green-500" />
                 Tasks
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
+            <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+              <div className="flex flex-col h-full space-y-3">
+                <div className="space-y-3 flex-shrink-0">
                   <Input
                     placeholder="Task title..."
                     value={newTask.title}
@@ -333,13 +329,13 @@ export default function Dashboard() {
                     placeholder="Description (optional)..."
                     value={newTask.description}
                     onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
+                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 min-h-[50px] max-h-[50px] resize-none"
                   />
                   <div className="flex gap-2">
                     <select
                       value={newTask.priority}
                       onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white"
+                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white text-sm"
                     >
                       <option value="low">Low Priority</option>
                       <option value="medium">Medium Priority</option>
@@ -351,87 +347,97 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {tasks.slice(0, 5).map((task) => (
-                    <div key={task.id} className="p-3 bg-zinc-900 rounded-lg border border-zinc-800">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-white font-medium text-sm">{task.title}</h4>
-                          {task.description && (
-                            <p className="text-zinc-400 text-xs mt-1">{task.description}</p>
+                <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+                  <div className="space-y-2">
+                    {tasks.slice(0, 10).map((task) => (
+                      <div key={task.id} className="p-2.5 bg-zinc-900 rounded-lg border border-zinc-800">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-medium text-sm truncate">{task.title}</h4>
+                            {task.description && (
+                              <p className="text-zinc-400 text-xs mt-1 line-clamp-1">{task.description}</p>
+                            )}
+                          </div>
+                          <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)} ml-2 mt-1 flex-shrink-0`} />
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-300 px-2 py-0.5">
+                            {task.status}
+                          </Badge>
+                          {task.due_date && (
+                            <span className="text-xs text-zinc-400 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(task.due_date).toLocaleDateString()}
+                            </span>
                           )}
                         </div>
-                        <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)} ml-2 mt-1`} />
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-300">
-                          {task.status}
-                        </Badge>
-                        {task.due_date && (
-                          <span className="text-xs text-zinc-400 flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {new Date(task.due_date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* AI Chat */}
-          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-purple-500" />
-                AI Assistant
-              </CardTitle>
+          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800 h-[600px] flex flex-col overflow-hidden">
+            <CardHeader className="flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-white">AI Assistant</CardTitle>
+                </div>
+                <Button
+                  onClick={createNewChat}
+                  size="sm"
+                  variant="outline"
+                  className="bg-transparent border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                  title="Start new chat"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
               <CardDescription className="text-zinc-400">
                 Chat with your AI copilot for insights and assistance
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="h-64 overflow-y-auto space-y-3 bg-zinc-900 rounded-lg p-4 border border-zinc-800">
+            <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
+              <div className="flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-y-auto space-y-4 bg-zinc-900 rounded-lg p-4 border border-zinc-800 mb-3 min-h-0">
                   {chatMessages.length === 0 ? (
-                    <p className="text-zinc-500 text-center py-8">
-                      Start a conversation with your AI assistant
-                    </p>
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-zinc-500 text-center">
+                        Start a conversation with your AI assistant
+                      </p>
+                    </div>
                   ) : (
                     chatMessages.map((msg) => (
-                      <div key={msg.id} className="space-y-2">
-                        {msg.isUser ? (
-                          <div className="flex justify-end">
-                            <div className="flex items-start gap-2 max-w-xs">
-                              <div className="bg-blue-600 text-white p-2 rounded-lg text-sm">
-                                {msg.message}
-                              </div>
-                              <User className="h-6 w-6 text-blue-500 mt-1" />
+                      msg.isUser ? (
+                        <div key={msg.id} className="flex justify-end">
+                          <div className="flex items-start gap-3 max-w-[70%]">
+                            <div className="bg-blue-600 text-white p-3 rounded-lg text-sm break-words">
+                              {msg.message}
+                            </div>
+                            <User className="h-6 w-6 text-blue-500 mt-1 flex-shrink-0" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={msg.id} className="flex justify-start">
+                          <div className="flex items-start gap-3 max-w-[85%]">
+                            <Bot className="h-6 w-6 text-green-500 mt-1 flex-shrink-0" />
+                            <div className="bg-zinc-800 text-zinc-200 p-3 rounded-lg text-sm break-words leading-relaxed">
+                              {msg.response}
                             </div>
                           </div>
-                        ) : (
-                          <div className="flex justify-start">
-                            <div className="flex items-start gap-2 max-w-lg">
-                              <Bot className="h-6 w-6 text-green-500 mt-1" />
-                              <div className="bg-zinc-800 text-zinc-200 p-2 rounded-lg text-sm">
-                                <div className="font-medium text-blue-400 mb-1">You:</div>
-                                <div className="mb-2">{msg.message}</div>
-                                <div className="font-medium text-green-400 mb-1">AI:</div>
-                                <div>{msg.response}</div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )
                     ))
                   )}
                   {loading && (
                     <div className="flex justify-start">
-                      <div className="flex items-start gap-2">
-                        <Bot className="h-6 w-6 text-green-500 mt-1" />
-                        <div className="bg-zinc-800 text-zinc-200 p-2 rounded-lg text-sm">
+                      <div className="flex items-start gap-3">
+                        <Bot className="h-6 w-6 text-green-500 mt-1 flex-shrink-0" />
+                        <div className="bg-zinc-800 text-zinc-200 p-3 rounded-lg text-sm">
                           AI is thinking...
                         </div>
                       </div>
@@ -439,7 +445,7 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3 flex-shrink-0 pt-1">
                   <Input
                     placeholder="Ask me anything..."
                     value={chatInput}
