@@ -240,7 +240,7 @@ export default function Dashboard() {
       <div className="container mx-auto p-6">
         <header className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <Bot className="h-8 w-8 text-blue-500" />
+            <Bot className="h-8 w-8 text-white" />
             <h1 className="text-3xl font-bold text-white">Personal AI Copilot</h1>
           </div>
           <p className="text-zinc-400">Your intelligent assistant for productivity and insights</p>

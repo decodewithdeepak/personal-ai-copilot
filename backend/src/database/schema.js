@@ -28,7 +28,7 @@ const createTables = async () => {
       );
     `);
 
-        // Documents for RAG
+        // Documents for RAG with JSON embeddings (fallback for pgvector)
         await pool.query(`
       CREATE TABLE IF NOT EXISTS documents (
         id SERIAL PRIMARY KEY,
@@ -38,8 +38,15 @@ const createTables = async () => {
         source VARCHAR(100),
         document_type VARCHAR(50),
         metadata JSONB,
+        embedding JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+        // Add index for faster searches
+        await pool.query(`
+      CREATE INDEX IF NOT EXISTS documents_user_id_idx 
+      ON documents (user_id);
     `);
 
         // Conversations for chat history
@@ -61,6 +68,8 @@ const createTables = async () => {
         user_id INTEGER REFERENCES users(id),
         content JSONB NOT NULL,
         briefing_date DATE NOT NULL,
+        agent_generated BOOLEAN DEFAULT FALSE,
+        generated_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, briefing_date)
       );
