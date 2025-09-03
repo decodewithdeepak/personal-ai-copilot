@@ -1,104 +1,116 @@
 {
-  "name": "Simple Daily Briefing Test",
-  "nodes": [
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 8 * * *"
-            }
-          ]
-        }
-      },
-      "name": "Every Day at 8 AM",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
-      "position": [240, 300]
-    },
-    {
-      "parameters": {
-        "url": "http://host.docker.internal:3001/api/briefing/generate",
-        "options": {
-          "bodyContentType": "json",
-          "jsonBody": "{\n  \"userId\": 1\n}",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+    "name": "Simple Daily Briefing Test",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Every Day at 8 AM",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ]
         },
-        "method": "POST"
-      },
-      "name": "Generate AI Briefing",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [460, 300]
-    },
-    {
-      "parameters": {
-        "url": "https://newsapi.org/v2/top-headlines",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {
-          "qs": {
-            "country": "us",
-            "category": "technology"
-          }
-        }
-      },
-      "name": "Get Tech News",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [460, 500]
-    },
-    {
-      "parameters": {
-        "url": "http://host.docker.internal:3001/api/briefing/upload-document",
-        "options": {
-          "bodyContentType": "json",
-          "jsonBody": "{\n  \"title\": \"Daily News - {{ $now.format('YYYY-MM-DD') }}\",\n  \"content\": \"Top tech news: {{ $node['Get Tech News'].json.articles[0].title }} - {{ $node['Get Tech News'].json.articles[0].description }}\",\n  \"userId\": 1\n}",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:3001/api/briefing/generate",
+                "options": {
+                    "bodyContentType": "json",
+                    "jsonBody": "{\n  \"userId\": 1\n}",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                },
+                "method": "POST"
+            },
+            "name": "Generate AI Briefing",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                460,
+                300
+            ]
         },
-        "method": "POST"
-      },
-      "name": "Store News in RAG",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [680, 500]
-    }
-  ],
-  "connections": {
-    "Every Day at 8 AM": {
-      "main": [
-        [
-          {
-            "node": "Generate AI Briefing",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Tech News",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+        {
+            "parameters": {
+                "url": "https://newsapi.org/v2/top-headlines",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {
+                    "qs": {
+                        "country": "us",
+                        "category": "technology"
+                    }
+                }
+            },
+            "name": "Get Tech News",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                460,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:3001/api/briefing/upload-document",
+                "options": {
+                    "bodyContentType": "json",
+                    "jsonBody": "{\n  \"title\": \"Daily News - {{ $now.format('YYYY-MM-DD') }}\",\n  \"content\": \"Top tech news: {{ $node['Get Tech News'].json.articles[0].title }} - {{ $node['Get Tech News'].json.articles[0].description }}\",\n  \"userId\": 1\n}",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                },
+                "method": "POST"
+            },
+            "name": "Store News in RAG",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                680,
+                500
+            ]
+        }
+    ],
+    "connections": {
+        "Every Day at 8 AM": {
+            "main": [
+                [
+                    {
+                        "node": "Generate AI Briefing",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Get Tech News",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Tech News": {
+            "main": [
+                [
+                    {
+                        "node": "Store News in RAG",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
     },
-    "Get Tech News": {
-      "main": [
-        [
-          {
-            "node": "Store News in RAG",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "active": true,
-  "settings": {},
-  "versionId": "1"
+    "active": true,
+    "settings": {},
+    "versionId": "1"
 }

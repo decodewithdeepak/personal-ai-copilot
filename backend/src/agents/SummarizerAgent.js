@@ -10,66 +10,60 @@ class SummarizerAgent {
   async createDailyBriefing({ planning, research, userId }) {
     try {
       console.log('📋 Summarizer Agent creating daily briefing...');
-      
+
       const briefingPrompt = `
-        Create a comprehensive daily briefing based on the following information:
+        Create a clean, professional daily briefing based on the following information:
         
-        PLANNING DATA:
-        ${JSON.stringify(planning, null, 2)}
-        
-        RESEARCH DATA:
-        ${JSON.stringify(research, null, 2)}
-        
+        PLANNING DATA: ${JSON.stringify(planning, null, 2)}
+        RESEARCH DATA: ${JSON.stringify(research, null, 2)}
         USER ID: ${userId}
         DATE: ${new Date().toLocaleDateString()}
         
-        Generate a professional, actionable daily briefing that includes:
+        Generate a well-formatted daily briefing that includes:
         
-        🌅 **GOOD MORNING OVERVIEW**
+        Good Morning Overview
         - Weather and environmental factors
         - Key news that might impact the day
         
-        📋 **TODAY'S PRIORITIES**
+        Today's Priorities  
         - Top 3 must-do tasks with reasoning
         - Time-sensitive items and deadlines
         - Energy-optimized scheduling suggestions
         
-        🎯 **STRATEGIC FOCUS**
+        Strategic Focus
         - High-impact activities to prioritize
         - Potential challenges and mitigation strategies
         - Opportunities to leverage
         
-        🌍 **EXTERNAL CONTEXT**
+        External Context
         - Relevant news and market trends
         - Environmental factors affecting productivity
-        - Networking or collaboration opportunities
         
-        ⚡ **ACTION ITEMS**
+        Action Items
         - Immediate next steps
         - Preparation needed for upcoming tasks
-        - Follow-up items from previous days
         
-        📊 **PRODUCTIVITY INSIGHTS**
+        Productivity Insights
         - Optimal work schedule based on task complexity
-        - Suggested break times and activities
         - Energy management recommendations
         
-        Use a professional yet friendly tone. Be specific and actionable. Include relevant emojis for visual appeal.
-        Keep the briefing concise but comprehensive (aim for 400-600 words).
+        FORMATTING REQUIREMENTS:
+        - Use simple, clean text without excessive markdown
+        - No asterisks or special characters for emphasis
+        - Use clear section headers
+        - Keep sentences concise and actionable
+        - Use bullet points sparingly
+        - Aim for 300-400 words total
+        - Professional yet friendly tone
       `;
 
       const result = await this.model.generateContent(briefingPrompt);
       const briefing = result.response.text();
-      
-      // Add metadata and formatting
-      const formattedBriefing = this.formatBriefing(briefing, {
-        userId,
-        planning,
-        research,
-        timestamp: new Date().toISOString()
-      });
-      
-      return formattedBriefing;
+
+      // Clean the output
+      const cleanBriefing = this.cleanFormatting(briefing);
+
+      return cleanBriefing;
     } catch (error) {
       console.error('❌ Daily briefing creation error:', error);
       throw error;
@@ -79,7 +73,7 @@ class SummarizerAgent {
   async summarizeTaskPlan(plannerResults, researchResults) {
     try {
       console.log('🎯 Summarizer Agent creating task plan summary...');
-      
+
       const summaryPrompt = `
         Create a concise task planning summary based on:
         
@@ -110,7 +104,7 @@ class SummarizerAgent {
   async summarizeResearch(researchData) {
     try {
       console.log('🔍 Summarizer Agent creating research summary...');
-      
+
       const researchPrompt = `
         Summarize this research data into actionable insights:
         
@@ -137,7 +131,7 @@ class SummarizerAgent {
   async generateWeeklySummary(weeklyData) {
     try {
       console.log('📊 Summarizer Agent creating weekly summary...');
-      
+
       const weeklyPrompt = `
         Create a comprehensive weekly summary and next week planning based on:
         
@@ -173,14 +167,28 @@ class SummarizerAgent {
     }
   }
 
+  cleanFormatting(text) {
+    return text
+      .replace(/\*\*/g, '') // Remove markdown bold
+      .replace(/\*/g, '')   // Remove markdown emphasis
+      .replace(/#{1,6}\s*/g, '') // Remove markdown headers
+      .replace(/🌅|📋|🎯|🌍|⚡|📊|🤖/g, '') // Remove emojis
+      .replace(/\n{3,}/g, '\n\n') // Reduce multiple newlines
+      .replace(/^\s+|\s+$/g, '') // Trim whitespace
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .join('\n');
+  }
+
   formatBriefing(briefingText, metadata) {
     const header = `
-# 🌟 Daily Briefing - ${new Date().toLocaleDateString('en-US', { 
-  weekday: 'long', 
-  year: 'numeric', 
-  month: 'long', 
-  day: 'numeric' 
-})}
+# 🌟 Daily Briefing - ${new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}
 
 *Generated by AI Agent Team at ${new Date().toLocaleTimeString()}*
 

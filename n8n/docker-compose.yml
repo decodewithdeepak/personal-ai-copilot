@@ -3,18 +3,22 @@ services:
     image: docker.n8n.io/n8nio/n8n
     container_name: personal_ai_copilot_n8n
     restart: always
+    env_file: .env
     environment:
       - DB_TYPE=sqlite
       - N8N_LOG_LEVEL=info
       - N8N_METRICS=false
       - N8N_USER_FOLDER=/home/node/.n8n
       - GENERIC_TIMEZONE=America/New_York
+      - BACKEND_URL=http://host.docker.internal:3001
     ports:
       - "5678:5678"
     volumes:
       - ./n8n_data:/home/node/.n8n
       - ./workflows:/opt/workflows
       - ./credentials:/opt/credentials
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Optional: Local Redis for workflow queuing (if needed for scaling)
   redis:

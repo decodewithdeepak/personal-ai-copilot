@@ -4,6 +4,7 @@ const pool = require('../database/connection');
 const geminiService = require('../services/gemini');
 const AgentManager = require('../agents/AgentManager');
 const embeddingService = require('../services/embedding');
+const OutputFormatter = require('../utils/OutputFormatter');
 
 // Initialize Agent Manager
 const agentManager = new AgentManager();
@@ -19,6 +20,8 @@ router.post('/generate', async (req, res) => {
 
         // Store the briefing in database
         const today = new Date().toISOString().split('T')[0];
+        const cleanBriefing = OutputFormatter.formatForPlainText(agentBriefing.briefing);
+
         const insertResult = await pool.query(`
             INSERT INTO briefings (user_id, content, briefing_date, agent_generated, generated_at)
             VALUES ($1, $2, $3, true, NOW())
@@ -29,11 +32,12 @@ router.post('/generate', async (req, res) => {
                 generated_at = NOW(),
                 created_at = CURRENT_TIMESTAMP
             RETURNING id, generated_at
-        `, [userId, JSON.stringify({ briefing: agentBriefing.briefing, agent_contributions: agentBriefing.agentContributions }), today]);
+        `, [userId, JSON.stringify({ briefing: cleanBriefing, agent_contributions: agentBriefing.agentContributions }), today]);
 
         res.json({
             success: true,
-            briefing: agentBriefing.briefing,
+            briefing: cleanBriefing,
+            formatted_briefing: OutputFormatter.formatForDisplay(agentBriefing.briefing),
             agent_contributions: agentBriefing.agentContributions,
             generated_at: agentBriefing.generatedAt,
             briefing_id: insertResult.rows[0].id,
@@ -42,13 +46,16 @@ router.post('/generate', async (req, res) => {
 
     } catch (error) {
         console.error('❌ Agent briefing generation error:', error);
-        
+
         // Fallback to traditional briefing if agents fail
         try {
             const fallbackBriefing = await generateFallbackBriefing(req.body.userId || 1);
+            const cleanFallback = OutputFormatter.formatForPlainText(fallbackBriefing);
+
             res.json({
                 success: true,
-                briefing: fallbackBriefing,
+                briefing: cleanFallback,
+                formatted_briefing: OutputFormatter.formatForDisplay(fallbackBriefing),
                 fallback_mode: true,
                 error: 'Agent system unavailable, using fallback'
             });
@@ -126,7 +133,7 @@ router.post('/plan-tasks', async (req, res) => {
 router.post('/research', async (req, res) => {
     try {
         const { query, userId = 1 } = req.body;
-        
+
         if (!query) {
             return res.status(400).json({
                 success: false,
@@ -216,7 +223,7 @@ router.get('/history', async (req, res) => {
 router.post('/upload-document', async (req, res) => {
     try {
         const { title, content, userId = 1 } = req.body;
-        
+
         if (!title || !content) {
             return res.status(400).json({
                 success: false,
@@ -225,10 +232,10 @@ router.post('/upload-document', async (req, res) => {
         }
 
         console.log(`📄 Uploading document: ${title}`);
-        
+
         // Generate embedding for the document
         const embedding = await embeddingService.generateEmbedding(content);
-        
+
         // Store in database (fallback to JSON if pgvector not available)
         const insertResult = await pool.query(`
             INSERT INTO documents (user_id, title, content, embedding, metadata, created_at)
@@ -257,7 +264,7 @@ router.post('/upload-document', async (req, res) => {
 router.post('/rag-query', async (req, res) => {
     try {
         const { query, userId = 1, limit = 5 } = req.body;
-        
+
         if (!query) {
             return res.status(400).json({
                 success: false,
@@ -266,10 +273,10 @@ router.post('/rag-query', async (req, res) => {
         }
 
         console.log(`🔍 RAG Query: ${query}`);
-        
+
         // Generate embedding for the query
         const queryEmbedding = await embeddingService.generateEmbedding(query);
-        
+
         // Get all documents for this user
         const documentsResult = await pool.query(`
             SELECT id, title, content, embedding, metadata
@@ -281,13 +288,13 @@ router.post('/rag-query', async (req, res) => {
         const documents = documentsResult.rows.map(doc => {
             let embedding;
             try {
-                embedding = typeof doc.embedding === 'string' ? 
+                embedding = typeof doc.embedding === 'string' ?
                     JSON.parse(doc.embedding) : doc.embedding;
             } catch (e) {
                 console.warn('Failed to parse embedding for doc', doc.id);
                 embedding = [];
             }
-            
+
             return {
                 ...doc,
                 embedding: embedding
@@ -295,8 +302,8 @@ router.post('/rag-query', async (req, res) => {
         }).filter(doc => doc.embedding.length > 0);
 
         const similarDocs = await embeddingService.findSimilarDocuments(
-            queryEmbedding, 
-            documents, 
+            queryEmbedding,
+            documents,
             limit
         );
 
