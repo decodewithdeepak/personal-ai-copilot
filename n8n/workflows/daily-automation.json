@@ -1,148 +1,148 @@
 {
-  "name": "Daily AI Copilot - Complete Automation",
-  "nodes": [
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 8 * * *"
-            }
-          ]
-        }
-      },
-      "name": "Daily 8AM Trigger",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
-      "position": [200, 300]
-    },
-    {
-      "parameters": {
-        "url": "=http://host.docker.internal:3001/api/briefing/generate",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "{\n  \"userId\": 1,\n  \"includeWeather\": true,\n  \"includeNews\": true,\n  \"preferences\": {\n    \"topics\": [\"technology\", \"business\", \"ai\"],\n    \"tone\": \"professional\",\n    \"length\": \"detailed\"\n  }\n}"
-      },
-      "name": "Generate Daily Briefing",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [420, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{$json.success}}",
-              "value2": "true"
-            }
-          ]
-        }
-      },
-      "name": "Check Success",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [640, 300]
-    },
-    {
-      "parameters": {
-        "url": "http://host.docker.internal:3001/api/notifications/send",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "{\n  \"userId\": 1,\n  \"type\": \"daily_briefing\",\n  \"title\": \"🌅 Your Daily Briefing is Ready!\",\n  \"message\": \"{{$node['Generate Daily Briefing'].json.briefing}}\",\n  \"priority\": \"normal\"\n}"
-      },
-      "name": "Send Success Notification",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [860, 200]
-    },
-    {
-      "parameters": {
-        "url": "http://host.docker.internal:3001/api/notifications/send",
-        "method": "POST",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "jsonBody": "{\n  \"userId\": 1,\n  \"type\": \"error\",\n  \"title\": \"⚠️ Briefing Generation Failed\",\n  \"message\": \"There was an issue generating your daily briefing. Please check the system.\",\n  \"priority\": \"high\"\n}"
-      },
-      "name": "Send Error Notification",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [860, 400]
-    }
-  ],
-  "connections": {
-    "Daily 8AM Trigger": {
-      "main": [
-        [
-          {
-            "node": "Generate Daily Briefing",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Daily Briefing": {
-      "main": [
-        [
-          {
-            "node": "Check Success",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Check Success": {
-      "main": [
-        [
-          {
-            "node": "Send Success Notification",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send Error Notification",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "active": false,
-  "settings": {},
-  "versionId": "1"
+	"name": "Daily AI Copilot - Complete Automation",
+	"nodes": [
+		{
+			"parameters": {
+				"rule": {
+					"interval": [
+						{
+							"field": "cronExpression",
+							"expression": "0 8 * * *"
+						}
+					]
+				}
+			},
+			"name": "Daily 8AM Trigger",
+			"type": "n8n-nodes-base.cron",
+			"typeVersion": 1,
+			"position": [200, 300]
+		},
+		{
+			"parameters": {
+				"url": "=http://host.docker.internal:3001/api/briefing/generate",
+				"method": "POST",
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						}
+					]
+				},
+				"sendBody": true,
+				"bodyContentType": "json",
+				"jsonBody": "{\n  \"userId\": 1,\n  \"includeWeather\": true,\n  \"includeNews\": true,\n  \"preferences\": {\n    \"topics\": [\"technology\", \"business\", \"ai\"],\n    \"tone\": \"professional\",\n    \"length\": \"detailed\"\n  }\n}"
+			},
+			"name": "Generate Daily Briefing",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.1,
+			"position": [420, 300]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"string": [
+						{
+							"value1": "={{$json.success}}",
+							"value2": "true"
+						}
+					]
+				}
+			},
+			"name": "Check Success",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 1,
+			"position": [640, 300]
+		},
+		{
+			"parameters": {
+				"url": "http://host.docker.internal:3001/api/notifications/send",
+				"method": "POST",
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						}
+					]
+				},
+				"sendBody": true,
+				"bodyContentType": "json",
+				"jsonBody": "{\n  \"userId\": 1,\n  \"type\": \"daily_briefing\",\n  \"title\": \"🌅 Your Daily Briefing is Ready!\",\n  \"message\": \"{{$node['Generate Daily Briefing'].json.briefing}}\",\n  \"priority\": \"normal\"\n}"
+			},
+			"name": "Send Success Notification",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.1,
+			"position": [860, 200]
+		},
+		{
+			"parameters": {
+				"url": "http://host.docker.internal:3001/api/notifications/send",
+				"method": "POST",
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "Content-Type",
+							"value": "application/json"
+						}
+					]
+				},
+				"sendBody": true,
+				"bodyContentType": "json",
+				"jsonBody": "{\n  \"userId\": 1,\n  \"type\": \"error\",\n  \"title\": \"⚠️ Briefing Generation Failed\",\n  \"message\": \"There was an issue generating your daily briefing. Please check the system.\",\n  \"priority\": \"high\"\n}"
+			},
+			"name": "Send Error Notification",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.1,
+			"position": [860, 400]
+		}
+	],
+	"connections": {
+		"Daily 8AM Trigger": {
+			"main": [
+				[
+					{
+						"node": "Generate Daily Briefing",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Generate Daily Briefing": {
+			"main": [
+				[
+					{
+						"node": "Check Success",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"Check Success": {
+			"main": [
+				[
+					{
+						"node": "Send Success Notification",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Send Error Notification",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"active": false,
+	"settings": {},
+	"versionId": "1"
 }
