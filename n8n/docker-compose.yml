@@ -1,0 +1,30 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: personal_ai_copilot_n8n
+    restart: always
+    environment:
+      - DB_TYPE=sqlite
+      - N8N_LOG_LEVEL=info
+      - N8N_METRICS=false
+      - N8N_USER_FOLDER=/home/node/.n8n
+      - GENERIC_TIMEZONE=America/New_York
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./workflows:/opt/workflows
+      - ./credentials:/opt/credentials
+
+  # Optional: Local Redis for workflow queuing (if needed for scaling)
+  redis:
+    image: redis:7-alpine
+    container_name: personal_ai_copilot_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:

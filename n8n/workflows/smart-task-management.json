@@ -1,0 +1,201 @@
+{
+  "name": "Smart Task Management",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression", 
+              "expression": "0 */4 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/api/tasks",
+        "options": {
+          "qs": {
+            "userId": "1",
+            "status": "pending"
+          }
+        }
+      },
+      "name": "Get Pending Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "{{ $json.data.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Has Pending Tasks?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/api/briefing/plan-tasks",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "{\n  \"userId\": 1\n}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "method": "POST"
+      },
+      "name": "Generate Task Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:3001/api/briefing/upload-document",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "{\n  \"title\": \"Task Plan - {{ $now.format('YYYY-MM-DD HH:mm') }}\",\n  \"content\": \"{{ $node['Generate Task Plan'].json.data.schedule }}\",\n  \"userId\": 1\n}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "method": "POST"
+      },
+      "name": "Store Task Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "{{ $now.hour() }}",
+              "rightValue": "17",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "After 5 PM?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "to": "your-email@example.com",
+        "subject": "⚠️ Pending Tasks Reminder",
+        "emailType": "html",
+        "message": "<h2>End of Day Task Reminder 📋</h2>\n<p>You still have pending tasks that need attention:</p>\n<ul>\n{% for task in $node['Get Pending Tasks'].json.data %}\n<li><strong>{{ task.title }}</strong> - Priority: {{ task.priority }}</li>\n{% endfor %}\n</ul>\n<p>Consider reviewing your task plan for tomorrow.</p>"
+      },
+      "name": "Send Task Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Tasks": {
+      "main": [
+        [
+          {
+            "node": "Has Pending Tasks?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Pending Tasks?": {
+      "main": [
+        [
+          {
+            "node": "Generate Task Plan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "After 5 PM?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Task Plan": {
+      "main": [
+        [
+          {
+            "node": "Store Task Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "After 5 PM?": {
+      "main": [
+        [
+          {
+            "node": "Send Task Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1"
+}
