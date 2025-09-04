@@ -26,7 +26,8 @@ interface TasksCardProps {
 }
 
 export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }: TasksCardProps) {
-    const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' });
+    const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', due_date: '' });
+    const [isCreating, setIsCreating] = useState(false);
 
     const getPriorityColor = (priority: string) => {
         switch (priority) {
@@ -38,8 +39,9 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
     };
 
     const createTask = async () => {
-        if (!newTask.title.trim()) return;
+        if (!newTask.title.trim() || isCreating) return;
 
+        setIsCreating(true);
         try {
             const response = await fetch(`${API_URL}/api/tasks`, {
                 method: 'POST',
@@ -48,16 +50,21 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
                     title: newTask.title,
                     description: newTask.description,
                     priority: newTask.priority,
+                    due_date: newTask.due_date || null,
                     userId: 1
                 })
             });
             const data = await response.json();
             if (data.success) {
                 onTaskCreate(data.data);
-                setNewTask({ title: '', description: '', priority: 'medium' });
+                setNewTask({ title: '', description: '', priority: 'medium', due_date: '' });
+            } else {
+                console.error('Task creation failed:', data.error);
             }
         } catch (error) {
             console.error('Error creating task:', error);
+        } finally {
+            setIsCreating(false);
         }
     };
 
@@ -126,6 +133,17 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
                         className="bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 resize-none"
                         rows={2}
                     />
+                    <div className="relative">
+                        <Input
+                            type="date"
+                            value={newTask.due_date}
+                            onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
+                            className="bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 pl-20"
+                        />
+                        <label className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-zinc-400 pointer-events-none">
+                            Due Date:
+                        </label>
+                    </div>
                     <div className="flex gap-2">
                         <select
                             value={newTask.priority}
@@ -136,9 +154,14 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
                             <option value="medium">Medium Priority</option>
                             <option value="high">High Priority</option>
                         </select>
-                        <Button onClick={createTask} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                        <Button
+                            onClick={createTask}
+                            size="sm"
+                            disabled={isCreating || !newTask.title.trim()}
+                            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                        >
                             <Plus className="h-4 w-4 mr-1" />
-                            Add Task
+                            {isCreating ? 'Adding...' : 'Add Task'}
                         </Button>
                     </div>
                 </div>
