@@ -1,28 +1,21 @@
 {
-    "name": "Simple Connection Test",
+    "name": "Daily Briefing - FIXED",
     "nodes": [
         {
-            "parameters": {},
-            "name": "Manual Trigger",
-            "type": "n8n-nodes-base.manualTrigger",
-            "typeVersion": 1,
-            "position": [
-                240,
-                300
-            ]
-        },
-        {
             "parameters": {
-                "url": "http://host.docker.internal:3001/health",
-                "method": "GET"
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 8 * * *"
+                        }
+                    ]
+                }
             },
-            "name": "Test Health",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                460,
-                300
-            ]
+            "name": "Every Day at 8 AM",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [240, 300]
         },
         {
             "parameters": {
@@ -41,32 +34,44 @@
                 "bodyContentType": "json",
                 "jsonBody": "{\n  \"userId\": 1\n}"
             },
-            "name": "Test Briefing API",
+            "name": "Generate Daily Briefing",
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.1,
-            "position": [
-                680,
-                300
-            ]
+            "position": [460, 300]
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:3001/api/tasks",
+                "method": "GET",
+                "options": {
+                    "qs": {
+                        "userId": "1"
+                    }
+                }
+            },
+            "name": "Get User Tasks",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [680, 300]
         }
     ],
     "connections": {
-        "Manual Trigger": {
+        "Every Day at 8 AM": {
             "main": [
                 [
                     {
-                        "node": "Test Health",
+                        "node": "Generate Daily Briefing",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Test Health": {
+        "Generate Daily Briefing": {
             "main": [
                 [
                     {
-                        "node": "Test Briefing API",
+                        "node": "Get User Tasks",
                         "type": "main",
                         "index": 0
                     }
