@@ -218,6 +218,7 @@ export default function Dashboard() {
             <NotificationsCard
               notifications={notifications}
               API_URL={API_URL}
+              onRefresh={loadNotifications}
             />
           </div>
 

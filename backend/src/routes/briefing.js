@@ -5,6 +5,7 @@ const geminiService = require('../services/gemini');
 const AgentManager = require('../agents/AgentManager');
 const embeddingService = require('../services/embedding');
 const OutputFormatter = require('../utils/OutputFormatter');
+const NotificationService = require('../services/NotificationService');
 
 // Initialize Agent Manager
 const agentManager = new AgentManager();
@@ -41,6 +42,20 @@ router.post('/generate', async (req, res) => {
             briefing_id: insertResult.rows[0].id,
             agent_powered: true
         });
+
+        // Generate smart notifications after briefing is created
+        try {
+            const notificationService = new NotificationService(req.io);
+            await notificationService.notifyBriefingGenerated(userId);
+
+            // Trigger smart notification checks
+            const weatherData = agentBriefing.agentContributions?.research?.weather;
+            const newsData = agentBriefing.agentContributions?.research?.news;
+            await notificationService.runSmartNotificationChecks(userId, weatherData, newsData);
+        } catch (notificationError) {
+            console.error('❌ Smart notification error:', notificationError);
+            // Don't fail the briefing if notifications fail
+        }
 
     } catch (error) {
         console.error('❌ Agent briefing generation error:', error);

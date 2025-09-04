@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../database/connection');
+const NotificationService = require('../services/NotificationService');
 
 // Get all tasks
 router.get('/', async (req, res) => {
@@ -84,6 +85,21 @@ router.post('/', async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
+        // Generate smart notification for new task
+        try {
+            const notificationService = new NotificationService(req.io);
+            if (priority === 'high') {
+                await notificationService.createNotification(
+                    userId,
+                    '🎯 High Priority Task Added',
+                    `New high-priority task created: "${title}". Consider tackling this soon!`,
+                    'warning'
+                );
+            }
+        } catch (notificationError) {
+            console.error('❌ Task notification error:', notificationError);
+        }
+
         res.status(201).json({
             success: true,
             data: newTask
@@ -130,6 +146,21 @@ router.put('/:id', async (req, res) => {
             task: updatedTask,
             timestamp: new Date().toISOString()
         });
+
+        // Generate completion notification
+        try {
+            if (status === 'completed') {
+                const notificationService = new NotificationService(req.io);
+                await notificationService.createNotification(
+                    updatedTask.user_id,
+                    '✅ Task Completed!',
+                    `Great job completing "${updatedTask.title}"! Keep up the momentum!`,
+                    'success'
+                );
+            }
+        } catch (notificationError) {
+            console.error('❌ Task completion notification error:', notificationError);
+        }
 
         res.json({
             success: true,

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../database/connection');
+const NotificationService = require('../services/NotificationService');
 
 // Get all notifications
 router.get('/', async (req, res) => {
@@ -195,6 +196,53 @@ router.get('/stats', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch notification statistics'
+        });
+    }
+});
+
+// Generate smart notifications
+router.post('/generate-smart', async (req, res) => {
+    try {
+        const { userId = 1, weatherData, newsData } = req.body;
+
+        const notificationService = new NotificationService(req.io);
+        const results = await notificationService.runSmartNotificationChecks(userId, weatherData, newsData);
+
+        res.json({
+            success: true,
+            message: 'Smart notifications generated successfully',
+            data: results
+        });
+    } catch (error) {
+        console.error('❌ Generate smart notifications error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate smart notifications'
+        });
+    }
+});
+
+// Trigger daily notification check
+router.post('/daily-check', async (req, res) => {
+    try {
+        const { userId = 1 } = req.body;
+
+        const notificationService = new NotificationService(req.io);
+
+        // Run basic daily checks
+        await notificationService.checkTaskDeadlines(userId);
+        await notificationService.checkHighPriorityTasks(userId);
+        await notificationService.generateProductivityInsights(userId);
+
+        res.json({
+            success: true,
+            message: 'Daily notification check completed'
+        });
+    } catch (error) {
+        console.error('❌ Daily notification check error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to run daily notification check'
         });
     }
 });

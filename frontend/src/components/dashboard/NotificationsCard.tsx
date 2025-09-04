@@ -1,7 +1,9 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Bell, RefreshCw, Zap } from 'lucide-react';
+import { useState } from 'react';
 
 interface Notification {
     id: number;
@@ -15,9 +17,30 @@ interface Notification {
 interface NotificationsCardProps {
     notifications: Notification[];
     API_URL: string;
+    onRefresh?: () => void;
 }
 
-export default function NotificationsCard({ notifications, API_URL }: NotificationsCardProps) {
+export default function NotificationsCard({ notifications, API_URL, onRefresh }: NotificationsCardProps) {
+    const [loading, setLoading] = useState(false);
+
+    const triggerSmartNotifications = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/api/notifications/daily-check`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: 1 })
+            });
+
+            if (response.ok && onRefresh) {
+                setTimeout(onRefresh, 1000); // Refresh after 1 second
+            }
+        } catch (error) {
+            console.error('Error triggering smart notifications:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
     const getNotificationColor = (type: string) => {
         switch (type) {
             case 'success': return 'text-green-400 bg-green-400/10 border-green-400/20';
@@ -30,9 +53,21 @@ export default function NotificationsCard({ notifications, API_URL }: Notificati
     return (
         <Card className="bg-zinc-950 border-zinc-800 h-full flex flex-col">
             <CardHeader>
-                <div className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-orange-500" />
-                    <CardTitle className="text-white">Notifications</CardTitle>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Bell className="h-5 w-5 text-orange-500" />
+                        <CardTitle className="text-white">Notifications</CardTitle>
+                    </div>
+                    <Button
+                        onClick={triggerSmartNotifications}
+                        disabled={loading}
+                        size="sm"
+                        variant="ghost"
+                        className="text-zinc-400 hover:text-white"
+                        title="Generate smart notifications"
+                    >
+                        <Zap className={`h-4 w-4 ${loading ? 'animate-pulse' : ''}`} />
+                    </Button>
                 </div>
                 <CardDescription className="text-zinc-400">
                     Stay updated with important alerts and reminders
@@ -41,8 +76,21 @@ export default function NotificationsCard({ notifications, API_URL }: Notificati
             <CardContent className="flex-1 overflow-hidden">
                 <div className="h-full overflow-y-auto space-y-3">
                     {notifications.length === 0 ? (
-                        <div className="flex items-center justify-center h-32">
-                            <p className="text-zinc-500 text-center">No notifications yet</p>
+                        <div className="flex flex-col items-center justify-center h-32">
+                            <p className="text-zinc-500 text-center mb-3">No notifications yet</p>
+                            <Button
+                                onClick={triggerSmartNotifications}
+                                disabled={loading}
+                                size="sm"
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white"
+                            >
+                                {loading ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                    <Zap className="h-4 w-4 mr-2" />
+                                )}
+                                Generate Smart Alerts
+                            </Button>
                         </div>
                     ) : (
                         notifications.map((notification) => (
