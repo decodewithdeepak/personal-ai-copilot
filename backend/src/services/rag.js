@@ -1,29 +1,86 @@
 const pool = require('../database/connection');
 const geminiService = require('./gemini');
+const { ChromaClient } = require('chromadb');
 
 class RAGService {
     constructor() {
-        // For development, we'll use simple in-memory storage instead of ChromaDB
-        this.documents = new Map();
-        this.initialized = true;
-        console.log('✅ RAG Service initialized (in-memory mode)');
+        this.client = null;
+        this.collection = null;
+        this.initialized = false;
+        // Don't initialize immediately - do it when first needed
+    }
+
+    async initializeChroma() {
+        try {
+            // Initialize ChromaDB client with correct configuration  
+            this.client = new ChromaClient({
+                host: 'localhost',
+                port: 8000
+            });
+
+            // Test connection first
+            const heartbeat = await this.client.heartbeat();
+            console.log('🟢 ChromaDB heartbeat:', heartbeat);
+
+            // Create or get collection for documents (no default embedding function)
+            this.collection = await this.client.getOrCreateCollection({
+                name: "personal_ai_copilot_documents",
+                metadata: { "hnsw:space": "cosine" },
+                embeddingFunction: null  // We handle embeddings with Gemini
+            });
+
+            this.initialized = true;
+            console.log('✅ RAG Service initialized with ChromaDB');
+        } catch (error) {
+            console.warn('⚠️ ChromaDB not available, falling back to in-memory mode:', error.message);
+            this.client = null;
+            this.collection = null;
+            this.documents = new Map();
+            this.initialized = true;
+            console.log('✅ RAG Service initialized (in-memory fallback mode)');
+        }
     }
 
     async initialize() {
-        // Already initialized in constructor
-        return true;
+        if (!this.initialized) {
+            await this.initializeChroma();
+        }
+        return this.initialized;
     }
 
     async addDocument(id, content, metadata = {}) {
         try {
-            // Store in memory for now
-            this.documents.set(id.toString(), {
-                content,
-                metadata,
-                embedding: await geminiService.generateEmbedding(content)
-            });
+            await this.initialize();
 
-            console.log(`✅ Document ${id} added to vector store`);
+            if (this.collection) {
+                // Use ChromaDB - ensure metadata is non-empty
+                const embedding = await geminiService.generateEmbedding(content);
+
+                // ChromaDB requires non-empty metadata
+                const finalMetadata = Object.keys(metadata).length > 0 ? metadata : {
+                    type: 'document',
+                    timestamp: new Date().toISOString(),
+                    source: 'rag_service'
+                };
+
+                await this.collection.add({
+                    ids: [id.toString()],
+                    embeddings: [embedding],
+                    documents: [content],
+                    metadatas: [finalMetadata]
+                });
+
+                console.log(`✅ Document ${id} added to ChromaDB vector store`);
+            } else {
+                // Fallback to in-memory
+                this.documents.set(id.toString(), {
+                    content,
+                    metadata,
+                    embedding: await geminiService.generateEmbedding(content)
+                });
+
+                console.log(`✅ Document ${id} added to in-memory vector store`);
+            }
         } catch (error) {
             console.error('❌ Error adding document:', error);
         }
@@ -31,23 +88,46 @@ class RAGService {
 
     async searchSimilar(query, limit = 5) {
         try {
-            // Simple similarity search using in-memory storage
-            const queryEmbedding = await geminiService.generateEmbedding(query);
-            const results = [];
+            await this.initialize();
 
-            for (const [id, doc] of this.documents.entries()) {
-                const similarity = this.cosineSimilarity(queryEmbedding, doc.embedding);
-                results.push({
-                    id,
-                    content: doc.content,
-                    metadata: doc.metadata,
-                    score: similarity
+            if (this.collection) {
+                // Use ChromaDB for similarity search
+                const queryEmbedding = await geminiService.generateEmbedding(query);
+
+                const results = await this.collection.query({
+                    queryEmbeddings: [queryEmbedding],
+                    nResults: limit
                 });
-            }
 
-            return results
-                .sort((a, b) => b.score - a.score)
-                .slice(0, limit);
+                if (results.ids[0] && results.ids[0].length > 0) {
+                    return results.ids[0].map((id, index) => ({
+                        id,
+                        content: results.documents[0][index],
+                        metadata: results.metadatas[0][index] || {},
+                        score: 1 - results.distances[0][index] // Convert distance to similarity
+                    }));
+                }
+
+                return [];
+            } else {
+                // Fallback to in-memory similarity search
+                const queryEmbedding = await geminiService.generateEmbedding(query);
+                const results = [];
+
+                for (const [id, doc] of this.documents.entries()) {
+                    const similarity = this.cosineSimilarity(queryEmbedding, doc.embedding);
+                    results.push({
+                        id,
+                        content: doc.content,
+                        metadata: doc.metadata,
+                        score: similarity
+                    });
+                }
+
+                return results
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, limit);
+            }
         } catch (error) {
             console.error('❌ Error searching documents:', error);
             return [];

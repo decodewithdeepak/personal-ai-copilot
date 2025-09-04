@@ -110,8 +110,8 @@ npm run dev
 
 - **Frontend:** Next.js 14, Tailwind CSS, shadcn/ui
 - **Backend:** Node.js, Express, TypeScript
-- **Database:** PostgreSQL with pgvector
-- **Vector DB:** ChromaDB
+- **Database:** NeonDB PostgreSQL (cloud-hosted)
+- **Vector DB:** ChromaDB (dedicated vector storage)
 - **AI:** Google Gemini API
 - **Automation:** n8n
 - **Agents:** CrewAI

@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../database/connection');
 const geminiService = require('../services/gemini');
 const AgentManager = require('../agents/AgentManager');
-const embeddingService = require('../services/embedding');
+const ragService = require('../services/rag');
 const OutputFormatter = require('../utils/OutputFormatter');
 const NotificationService = require('../services/NotificationService');
 
@@ -13,7 +13,7 @@ const agentManager = new AgentManager();
 // Generate daily briefing using AI agents
 router.post('/generate', async (req, res) => {
     try {
-        const { userId = 1 } = req.body;
+        const { userId = 1 } = req.body || {};
         console.log(`🚀 Generating AI agent briefing for user ${userId}`);
 
         // Use Agent Manager to generate collaborative briefing
@@ -246,15 +246,20 @@ router.post('/upload-document', async (req, res) => {
 
         console.log(`📄 Uploading document: ${title}`);
 
-        // Generate embedding for the document
-        const embedding = await embeddingService.generateEmbedding(content);
+        // Store document in RAG service (ChromaDB)
+        await ragService.addDocument(`doc_${Date.now()}`, content, {
+            title,
+            userId,
+            source: 'user_upload',
+            timestamp: new Date().toISOString()
+        });
 
-        // Store in database (fallback to JSON if pgvector not available)
+        // Store in database - metadata only (vectors in ChromaDB)
         const insertResult = await pool.query(`
-            INSERT INTO documents (user_id, title, content, embedding, metadata, created_at)
-            VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, NOW())
+            INSERT INTO documents (user_id, title, content, metadata, created_at)
+            VALUES ($1, $2, $3, $4::jsonb, NOW())
             RETURNING id, created_at
-        `, [userId, title, content, JSON.stringify(embedding), JSON.stringify({ source: 'upload' })]);
+        `, [userId, title, content, JSON.stringify({ source: 'upload' })]);
 
         res.json({
             success: true,
@@ -287,50 +292,27 @@ router.post('/rag-query', async (req, res) => {
 
         console.log(`🔍 RAG Query: ${query}`);
 
-        // Generate embedding for the query
-        const queryEmbedding = await embeddingService.generateEmbedding(query);
+        // Use RAG service for semantic search
+        const searchResults = await ragService.searchSimilar(query, limit);
 
-        // Get all documents for this user
-        const documentsResult = await pool.query(`
-            SELECT id, title, content, embedding, metadata
-            FROM documents 
-            WHERE user_id = $1
-        `, [userId]);
+        // Also search user's database content
+        const dbResults = await ragService.searchUserData(query, userId, limit);
 
-        // Parse embeddings and find similar documents
-        const documents = documentsResult.rows.map(doc => {
-            let embedding;
-            try {
-                embedding = typeof doc.embedding === 'string' ?
-                    JSON.parse(doc.embedding) : doc.embedding;
-            } catch (e) {
-                console.warn('Failed to parse embedding for doc', doc.id);
-                embedding = [];
-            }
-
-            return {
-                ...doc,
-                embedding: embedding
-            };
-        }).filter(doc => doc.embedding.length > 0);
-
-        const similarDocs = await embeddingService.findSimilarDocuments(
-            queryEmbedding,
-            documents,
-            limit
-        );
+        // Combine and deduplicate results
+        const allResults = [...searchResults, ...dbResults];
+        const uniqueResults = allResults.slice(0, limit);
 
         res.json({
             success: true,
             query,
-            similar_documents: similarDocs.map(doc => ({
+            similar_documents: uniqueResults.map(doc => ({
                 id: doc.id,
-                title: doc.title,
+                title: doc.title || 'Untitled',
                 content: doc.content.substring(0, 200) + '...',
-                similarity: doc.similarity,
-                metadata: doc.metadata
+                similarity: doc.score || 0,
+                metadata: doc.metadata || {}
             })),
-            total_documents: documents.length
+            total_documents: uniqueResults.length
         });
 
     } catch (error) {

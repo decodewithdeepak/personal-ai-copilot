@@ -1,9 +1,9 @@
 const pool = require('./connection');
 
 const createTables = async () => {
-    try {
-        // Users table
-        await pool.query(`
+  try {
+    // Users table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -13,8 +13,8 @@ const createTables = async () => {
       );
     `);
 
-        // Tasks table
-        await pool.query(`
+    // Tasks table
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -28,8 +28,8 @@ const createTables = async () => {
       );
     `);
 
-        // Documents for RAG with JSON embeddings (fallback for pgvector)
-        await pool.query(`
+    // Documents for RAG - vectors now handled by ChromaDB
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS documents (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -38,19 +38,18 @@ const createTables = async () => {
         source VARCHAR(100),
         document_type VARCHAR(50),
         metadata JSONB,
-        embedding JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
-        // Add index for faster searches
-        await pool.query(`
+    // Add index for faster searches
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS documents_user_id_idx 
       ON documents (user_id);
     `);
 
-        // Conversations for chat history
-        await pool.query(`
+    // Conversations for chat history
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS conversations (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -61,8 +60,8 @@ const createTables = async () => {
       );
     `);
 
-        // Daily briefings
-        await pool.query(`
+    // Daily briefings
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS briefings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -75,8 +74,8 @@ const createTables = async () => {
       );
     `);
 
-        // Notifications
-        await pool.query(`
+    // Notifications
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
@@ -88,26 +87,26 @@ const createTables = async () => {
       );
     `);
 
-        console.log('✅ All tables created successfully');
-    } catch (error) {
-        console.error('❌ Error creating tables:', error);
-        throw error;
-    }
+    console.log('✅ All tables created successfully');
+  } catch (error) {
+    console.error('❌ Error creating tables:', error);
+    throw error;
+  }
 };
 
 const dropTables = async () => {
-    try {
-        const tables = ['notifications', 'briefings', 'conversations', 'documents', 'tasks', 'users'];
+  try {
+    const tables = ['notifications', 'briefings', 'conversations', 'documents', 'tasks', 'users'];
 
-        for (const table of tables) {
-            await pool.query(`DROP TABLE IF EXISTS ${table} CASCADE;`);
-        }
-
-        console.log('✅ All tables dropped successfully');
-    } catch (error) {
-        console.error('❌ Error dropping tables:', error);
-        throw error;
+    for (const table of tables) {
+      await pool.query(`DROP TABLE IF EXISTS ${table} CASCADE;`);
     }
+
+    console.log('✅ All tables dropped successfully');
+  } catch (error) {
+    console.error('❌ Error dropping tables:', error);
+    throw error;
+  }
 };
 
 module.exports = { createTables, dropTables };

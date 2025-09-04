@@ -9,6 +9,7 @@ import DailyBriefingCard from '@/components/dashboard/DailyBriefingCard';
 import NotificationsCard from '@/components/dashboard/NotificationsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { NewsCard } from '@/components/dashboard/NewsCard';
+import AutomationCard from '@/components/dashboard/AutomationCard';
 
 interface Task {
   id: number;
@@ -105,6 +106,31 @@ export default function Dashboard() {
       setNotifications(prev => [data, ...prev]);
     });
 
+    // Automation completion events
+    socketInstance.on('automation_completed', (data) => {
+      console.log('🤖 Automation completed:', data);
+
+      // Add notification about automation completion
+      setNotifications(prev => [{
+        id: Date.now(),
+        title: `Automation Complete: ${data.workflow}`,
+        message: `${data.workflow} automation finished successfully`,
+        type: 'success',
+        read: false,
+        created_at: new Date().toISOString()
+      }, ...prev]);
+
+      // If it's a briefing automation, update the briefing
+      if (data.workflow === 'daily-briefing' && data.result?.briefing) {
+        setBriefing(data.result.briefing);
+      }
+
+      // If it's task management, refresh tasks
+      if (data.workflow === 'task-management') {
+        loadTasks();
+      }
+    });
+
     return () => {
       socketInstance.disconnect();
     };
@@ -198,6 +224,27 @@ export default function Dashboard() {
     }
   };
 
+  const handleAutomationComplete = (workflowName: string, result: any) => {
+    console.log(`🤖 Automation "${workflowName}" completed:`, result);
+
+    // Add success notification
+    setNotifications(prev => [{
+      id: Date.now(),
+      title: `${workflowName} Complete`,
+      message: result.message || `${workflowName} automation finished successfully`,
+      type: 'success',
+      read: false,
+      created_at: new Date().toISOString()
+    }, ...prev]);
+
+    // Refresh relevant data based on automation type
+    if (workflowName.includes('Briefing')) {
+      loadTodaysBriefing();
+    } else if (workflowName.includes('Task')) {
+      loadTasks();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <div className="container mx-auto p-6">
@@ -250,13 +297,21 @@ export default function Dashboard() {
           </div>
 
           {/* Weather and News Row */}
-          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-1">
               <WeatherCard API_URL={API_URL} />
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-1">
               <NewsCard API_URL={API_URL} />
             </div>
+          </div>
+
+          {/* Automation Row */}
+          <div className="lg:col-span-1">
+            <AutomationCard
+              API_URL={API_URL}
+              onAutomationComplete={handleAutomationComplete}
+            />
           </div>
         </div>
       </div>

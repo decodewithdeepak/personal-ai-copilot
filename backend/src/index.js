@@ -11,6 +11,7 @@ const tasksRoutes = require('./routes/tasks');
 const notificationsRoutes = require('./routes/notifications');
 const weatherRoutes = require('./routes/weather');
 const newsRoutes = require('./routes/news');
+const automationRoutes = require('./routes/automation');
 
 const app = express();
 const httpServer = createServer(app);
@@ -40,6 +41,7 @@ app.use('/api/tasks', tasksRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/automation', automationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

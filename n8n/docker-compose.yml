@@ -20,6 +20,20 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  # ChromaDB vector database for RAG functionality
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: personal_ai_copilot_chromadb
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+
   # Optional: Local Redis for workflow queuing (if needed for scaling)
   redis:
     image: redis:7-alpine
@@ -32,3 +46,4 @@ services:
 
 volumes:
   redis_data:
+  chromadb_data:
