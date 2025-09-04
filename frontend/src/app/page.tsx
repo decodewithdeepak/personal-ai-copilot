@@ -187,9 +187,15 @@ export default function Dashboard() {
   };
 
   const handleTaskUpdate = (taskId: number, updates: any) => {
-    setTasks(prev => prev.map(task =>
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
+    if (updates.deleted) {
+      // Remove the task from state if it was deleted
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+    } else {
+      // Update the task if it's just a regular update
+      setTasks(prev => prev.map(task =>
+        task.id === taskId ? { ...task, ...updates } : task
+      ));
+    }
   };
 
   return (

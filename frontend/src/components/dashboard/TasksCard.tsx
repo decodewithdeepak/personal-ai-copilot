@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { CheckSquare, Plus } from 'lucide-react';
+import { CheckSquare, Plus, Check, Trash2 } from 'lucide-react';
 
 interface Task {
     id: number;
@@ -61,6 +61,44 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
         }
     };
 
+    const completeTask = async (taskId: number) => {
+        try {
+            const response = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'completed' })
+            });
+            const data = await response.json();
+            if (data.success) {
+                onTaskUpdate(taskId, { status: 'completed' });
+            }
+        } catch (error) {
+            console.error('Error completing task:', error);
+        }
+    };
+
+    const deleteTask = async (taskId: number) => {
+        try {
+            console.log('Deleting task:', taskId); // Debug log
+            const response = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            console.log('Delete response:', data); // Debug log
+
+            if (data.success) {
+                // Trigger a refresh by calling onTaskUpdate with a special flag
+                onTaskUpdate(taskId, { deleted: true });
+            } else {
+                console.error('Delete failed:', data.error);
+                alert('Failed to delete task: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            alert('Error deleting task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
     return (
         <Card className="bg-zinc-950 border-zinc-800 h-full flex flex-col">
             <CardHeader>
@@ -92,7 +130,7 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
                         <select
                             value={newTask.priority}
                             onChange={(e) => setNewTask(prev => ({ ...prev, priority: e.target.value }))}
-                            className="bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 text-sm"
+                            className="bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-1 text-sm"
                         >
                             <option value="low">Low Priority</option>
                             <option value="medium">Medium Priority</option>
@@ -112,38 +150,64 @@ export default function TasksCard({ tasks, onTaskCreate, onTaskUpdate, API_URL }
                             <p className="text-zinc-500 text-center">No tasks yet. Create your first task above!</p>
                         </div>
                     ) : (
-                        tasks.map((task) => (
-                            <div
-                                key={task.id}
-                                className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <h3 className="font-medium text-white truncate">{task.title}</h3>
-                                            <Badge className={`${getPriorityColor(task.priority)} text-white text-xs`}>
-                                                {task.priority}
-                                            </Badge>
-                                        </div>
-                                        {task.description && (
-                                            <p className="text-zinc-400 text-sm mb-2 line-clamp-2">{task.description}</p>
-                                        )}
-                                        <div className="flex items-center gap-2 text-xs text-zinc-500">
-                                            <span className={`inline-block w-2 h-2 rounded-full ${task.status === 'completed' ? 'bg-green-500' :
-                                                    task.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'
-                                                }`}></span>
-                                            <span>{task.status}</span>
-                                            {task.due_date && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span>{new Date(task.due_date).toLocaleDateString()}</span>
-                                                </>
+                        tasks
+                            .filter((task, index, self) => self.findIndex(t => t.id === task.id) === index) // Remove duplicates
+                            .map((task, index) => (
+                                <div
+                                    key={`task-${task.id}-${index}`} // Ensure unique keys
+                                    className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 hover:border-zinc-700 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <h3 className="font-medium text-white truncate">{task.title}</h3>
+                                                <Badge className={`${getPriorityColor(task.priority)} text-white text-xs`}>
+                                                    {task.priority}
+                                                </Badge>
+                                            </div>
+                                            {task.description && (
+                                                <p className="text-zinc-400 text-sm mb-2 line-clamp-2">{task.description}</p>
                                             )}
+                                            <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                                <span className={`inline-block w-2 h-2 rounded-full ${task.status === 'completed' ? 'bg-green-500' :
+                                                    task.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'
+                                                    }`}></span>
+                                                <span>{task.status}</span>
+                                                {task.due_date && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 ml-2">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => completeTask(task.id)}
+                                                disabled={task.status === 'completed'}
+                                                className={`h-8 w-8 p-0 ${task.status === 'completed'
+                                                    ? 'text-green-500 cursor-not-allowed'
+                                                    : 'text-zinc-400 hover:text-green-500 hover:bg-green-500/10'
+                                                    }`}
+                                                title={task.status === 'completed' ? 'Already completed' : 'Mark as complete'}
+                                            >
+                                                <Check className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => deleteTask(task.id)}
+                                                className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
+                                                title="Delete task"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            ))
                     )}
                 </div>
             </CardContent>
