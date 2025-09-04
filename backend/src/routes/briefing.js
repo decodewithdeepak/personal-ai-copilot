@@ -23,15 +23,13 @@ router.post('/generate', async (req, res) => {
         const cleanBriefing = OutputFormatter.formatForPlainText(agentBriefing.briefing);
 
         const insertResult = await pool.query(`
-            INSERT INTO briefings (user_id, content, briefing_date, agent_generated, generated_at)
-            VALUES ($1, $2, $3, true, NOW())
+            INSERT INTO briefings (user_id, content, briefing_date)
+            VALUES ($1, $2, $3)
             ON CONFLICT (user_id, briefing_date) 
             DO UPDATE SET 
-                content = $2, 
-                agent_generated = true, 
-                generated_at = NOW(),
+                content = $2,
                 created_at = CURRENT_TIMESTAMP
-            RETURNING id, generated_at
+            RETURNING id, created_at
         `, [userId, JSON.stringify({ briefing: cleanBriefing, agent_contributions: agentBriefing.agentContributions }), today]);
 
         res.json({

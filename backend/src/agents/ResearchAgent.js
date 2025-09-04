@@ -7,14 +7,16 @@ class ResearchAgent {
     this.role = 'External Context and Information Gathering';
     this.status = 'active';
     this.newsAPI = process.env.NEWS_API_KEY;
-    this.weatherAPI = process.env.OPENWEATHER_API_KEY;
+    this.weatherAPI = process.env.WEATHER_API_KEY; // Fixed: was OPENWEATHER_API_KEY
     console.log('🔍 Research Agent initialized');
+    console.log(`🔍 Weather API configured: ${this.weatherAPI ? 'Yes' : 'No'}`);
+    console.log(`🔍 News API configured: ${this.newsAPI ? 'Yes' : 'No'}`);
   }
 
   async gatherDailyContext() {
     try {
       console.log('🌍 Research Agent gathering daily context...');
-      
+
       const [weather, news, marketData] = await Promise.allSettled([
         this.getWeatherContext(),
         this.getNewsContext(),
@@ -40,9 +42,9 @@ class ResearchAgent {
   async enhanceTaskContext(tasks) {
     try {
       console.log('📈 Research Agent enhancing task context...');
-      
+
       const enhancedTasks = [];
-      
+
       for (const task of tasks.slice(0, 5)) { // Limit to prevent API overuse
         const context = await this.getTaskRelevantInfo(task);
         enhancedTasks.push({
@@ -50,7 +52,7 @@ class ResearchAgent {
           external_context: context
         });
       }
-      
+
       return {
         enhanced_tasks: enhancedTasks,
         context_sources: ['web_search', 'news', 'trends'],
@@ -65,7 +67,7 @@ class ResearchAgent {
   async deepResearch(query) {
     try {
       console.log(`🔬 Research Agent conducting deep research on: ${query}`);
-      
+
       const [newsResults, webContext] = await Promise.allSettled([
         this.searchNews(query),
         this.getWebContext(query)
@@ -80,7 +82,7 @@ class ResearchAgent {
 
       // Use AI to synthesize findings
       const synthesis = await this.synthesizeResearch(researchData);
-      
+
       return {
         ...researchData,
         synthesis: synthesis,
@@ -94,40 +96,65 @@ class ResearchAgent {
 
   async getWeatherContext() {
     if (!this.weatherAPI) {
-      return { error: 'Weather API key not configured' };
+      console.log('⚠️ Weather API key not configured');
+      return { error: 'Weather API key not configured', available: false };
     }
 
     try {
       const response = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=Delhi,IN&appid=${this.weatherAPI}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?q=Delhi,IN&appid=${this.weatherAPI}&units=metric`,
+        { timeout: 8000 } // 8 second timeout
       );
-      
+
       const weather = response.data;
       return {
+        available: true,
         location: weather.name,
         temperature: weather.main.temp,
         condition: weather.weather[0].description,
         humidity: weather.main.humidity,
-        wind_speed: weather.wind.speed,
+        wind_speed: weather.wind?.speed || 0,
         impact_assessment: this.assessWeatherImpact(weather)
       };
     } catch (error) {
       console.error('Weather API error:', error);
-      return { error: 'Failed to fetch weather data' };
+      if (error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+        return { error: 'Weather service temporarily unavailable', available: false };
+      }
+      return { error: 'Failed to fetch weather data', available: false };
     }
   }
 
   async getNewsContext() {
     if (!this.newsAPI) {
-      return { error: 'News API key not configured' };
+      console.log('⚠️ News API key not configured');
+      return { error: 'News API key not configured', available: false };
     }
 
     try {
-      const response = await axios.get(
-        `https://newsapi.org/v2/top-headlines?country=in&category=technology&pageSize=5&apiKey=${this.newsAPI}`
+      // Try multiple news sources for better coverage
+      const queries = [
+        `https://newsapi.org/v2/top-headlines?country=in&category=technology&pageSize=3&apiKey=${this.newsAPI}`,
+        `https://newsapi.org/v2/top-headlines?country=in&category=business&pageSize=2&apiKey=${this.newsAPI}`,
+        `https://newsapi.org/v2/top-headlines?country=us&category=technology&pageSize=2&apiKey=${this.newsAPI}`
+      ];
+
+      const results = await Promise.allSettled(
+        queries.map(url => axios.get(url, { timeout: 8000 }))
       );
-      
-      const articles = response.data.articles.map(article => ({
+
+      let allArticles = [];
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.data.articles) {
+          allArticles = [...allArticles, ...result.value.data.articles];
+        }
+      });
+
+      if (allArticles.length === 0) {
+        return { error: 'No news articles found', available: false };
+      }
+
+      const articles = allArticles.slice(0, 5).map(article => ({
         title: article.title,
         description: article.description,
         source: article.source.name,
@@ -136,13 +163,14 @@ class ResearchAgent {
       }));
 
       return {
+        available: true,
         headlines: articles,
         summary: await this.summarizeNews(articles),
         trending_topics: this.extractTrendingTopics(articles)
       };
     } catch (error) {
       console.error('News API error:', error);
-      return { error: 'Failed to fetch news data' };
+      return { error: 'Failed to fetch news data', available: false };
     }
   }
 
@@ -194,7 +222,7 @@ class ResearchAgent {
       const response = await axios.get(
         `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&pageSize=3&apiKey=${this.newsAPI}`
       );
-      
+
       return response.data.articles.map(article => ({
         title: article.title,
         description: article.description,
@@ -238,12 +266,12 @@ class ResearchAgent {
   assessWeatherImpact(weather) {
     const temp = weather.main.temp;
     const condition = weather.weather[0].main.toLowerCase();
-    
+
     let impact = 'neutral';
     if (temp > 35) impact = 'high_heat_advisory';
     else if (temp < 5) impact = 'cold_weather_caution';
     else if (condition.includes('rain')) impact = 'rain_delays_possible';
-    
+
     return impact;
   }
 
@@ -251,7 +279,7 @@ class ResearchAgent {
     // Simple relevance scoring based on keywords
     const keywords = ['technology', 'ai', 'productivity', 'business', 'innovation'];
     const text = (article.title + ' ' + article.description).toLowerCase();
-    const score = keywords.reduce((acc, keyword) => 
+    const score = keywords.reduce((acc, keyword) =>
       text.includes(keyword) ? acc + 1 : acc, 0
     );
     return Math.min(score / keywords.length, 1);
@@ -260,7 +288,7 @@ class ResearchAgent {
   async summarizeNews(articles) {
     const newsText = articles.map(a => `${a.title}: ${a.description}`).join('\n');
     const summaryPrompt = `Summarize these news headlines in 2-3 key points: ${newsText}`;
-    
+
     const result = await this.model.generateContent(summaryPrompt);
     return result.response.text();
   }
@@ -270,15 +298,15 @@ class ResearchAgent {
     const allText = articles.map(a => a.title + ' ' + a.description).join(' ').toLowerCase();
     const words = allText.split(/\s+/);
     const wordCount = {};
-    
+
     words.forEach(word => {
       if (word.length > 4) {
         wordCount[word] = (wordCount[word] || 0) + 1;
       }
     });
-    
+
     return Object.entries(wordCount)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([word]) => word);
   }

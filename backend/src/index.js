@@ -9,6 +9,8 @@ const chatRoutes = require('./routes/chat');
 const briefingRoutes = require('./routes/briefing');
 const tasksRoutes = require('./routes/tasks');
 const notificationsRoutes = require('./routes/notifications');
+const weatherRoutes = require('./routes/weather');
+const newsRoutes = require('./routes/news');
 
 const app = express();
 const httpServer = createServer(app);
@@ -36,6 +38,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/briefing', briefingRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/weather', weatherRoutes);
+app.use('/api/news', newsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

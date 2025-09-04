@@ -22,8 +22,9 @@ class SummarizerAgent {
         Generate a well-formatted daily briefing that includes:
         
         Good Morning Overview
-        - Weather and environmental factors
-        - Key news that might impact the day
+        - Brief welcome and overview for the day
+        - Weather conditions and how they might affect productivity
+        - Key news headlines that might impact the day
         
         Today's Priorities  
         - Top 3 must-do tasks with reasoning
@@ -33,9 +34,10 @@ class SummarizerAgent {
         Strategic Focus
         - High-impact activities to prioritize
         - Potential challenges and mitigation strategies
-        - Opportunities to leverage
+        - Opportunities to leverage current trends
         
         External Context
+        - Weather impact on work and commute
         - Relevant news and market trends
         - Environmental factors affecting productivity
         
@@ -44,7 +46,7 @@ class SummarizerAgent {
         - Preparation needed for upcoming tasks
         
         Productivity Insights
-        - Optimal work schedule based on task complexity
+        - Optimal work schedule based on task complexity and weather
         - Energy management recommendations
         
         FORMATTING REQUIREMENTS:
