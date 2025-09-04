@@ -12,7 +12,7 @@ This project extensively uses AI tools during development to meet the 2-day dead
 - **How:** Code autocompletion, function implementation, API endpoint creation
 - **Contribution:** ~40% of boilerplate code, API routes, and utility functions
 
-### Claude 3.5 Sonnet
+### Claud 4 Sonnet
 
 - **Where:** Architecture design, documentation, complex logic
 - **How:** System design discussions, README generation, algorithm implementation
@@ -82,4 +82,4 @@ This disclosure ensures complete transparency about AI usage while highlighting 
 
 ---
 
-_Last updated: September 2, 2025_
+_Last updated: September 4, 2025_

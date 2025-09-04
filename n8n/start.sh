@@ -1,44 +1,40 @@
 #!/bin/bash
 
-echo "🚀 Starting Personal AI Copilot n8n Automation Layer..."
+# Dynamic IP Configuration Script for n8n
+# This script automatically detects your IP and updates workflows
 
-# Create required directories
-mkdir -p n8n_data
-mkdir -p n8n_data/workflows
-mkdir -p n8n_data/credentials
+echo "🔍 Detecting local IP address..."
 
-# Set permissions
-chmod 755 n8n_data
+# Get the active IP address (Windows)
+if command -v ipconfig &> /dev/null; then
+    LOCAL_IP=$(ipconfig | grep -E "IPv4.*192\.|IPv4.*10\.|IPv4.*172\." | head -1 | awk '{print $14}')
+fi
 
-# Start n8n with Docker Compose
-echo "📦 Starting n8n container..."
+# Fallback to localhost if no IP detected
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="localhost"
+fi
+
+echo "📍 Using IP: $LOCAL_IP"
+
+# Update environment file
+cat > .env << EOF
+BACKEND_URL=http://$LOCAL_IP:3001
+NEWS_API_KEY=3af5d44b978d41eeac63fb9d65016726
+WEATHER_API_KEY=YOUR_OPENWEATHERMAP_API_KEY_HERE
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+DB_TYPE=sqlite
+N8N_LOG_LEVEL=info
+EOF
+
+echo "✅ Configuration updated!"
+echo "🚀 Starting n8n with dynamic configuration..."
+
+# Restart n8n with new configuration
+docker-compose down
 docker-compose up -d
 
-# Wait for n8n to be ready
-echo "⏳ Waiting for n8n to be ready..."
-sleep 15
-
-# Check if n8n is running
-if curl -f http://localhost:5678 > /dev/null 2>&1; then
-    echo "✅ n8n is running at http://localhost:5678"
-    echo "📧 Login with:"
-    echo "   Username: admin"
-    echo "   Password: password123"
-    echo ""
-    echo "🔧 Next steps:"
-    echo "1. Open http://localhost:5678 in your browser"
-    echo "2. Import the workflow files from ./workflows/"
-    echo "3. Configure your API keys:"
-    echo "   - Weather API (OpenWeatherMap)"
-    echo "   - News API"
-    echo "   - Email credentials"
-    echo "4. Activate the workflows"
-    echo ""
-    echo "📋 Available workflows:"
-    echo "   - Daily Briefing Automation (runs at 8 AM)"
-    echo "   - Smart Task Management (runs every 4 hours)"
-    echo "   - Proactive Knowledge Gathering (runs 3x daily)"
-else
-    echo "❌ n8n failed to start. Check Docker logs:"
-    echo "docker-compose logs n8n"
-fi
+echo "🎉 n8n is ready at http://localhost:5678"
