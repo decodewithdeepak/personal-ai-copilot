@@ -70,88 +70,96 @@ class RAGService {
 
     async searchDatabase(searchQuery, userId) {
         try {
-            // Keyword search in PostgreSQL
-            const result = await pool.query(`
-        SELECT id, title, content, source, document_type, metadata
-        FROM documents 
-        WHERE user_id = $1 
-        AND (
-          title ILIKE $2 OR 
-          content ILIKE $2 OR 
-          source ILIKE $2
-        )
-        ORDER BY created_at DESC
-        LIMIT 10
-      `, [userId, `%${searchQuery}%`]);
+            // Search across multiple data sources
+            const results = [];
 
-            return result.rows.map(row => ({
-                id: row.id,
-                title: row.title,
-                content: row.content,
-                source: row.source,
-                document_type: row.document_type,
-                metadata: row.metadata || {}
-            }));
+            // 1. Always search tasks for any query (users often ask about their work)
+            const taskResult = await pool.query(`
+                SELECT id, title, description, status, priority, due_date, created_at
+                FROM tasks 
+                WHERE user_id = $1 
+                ORDER BY 
+                    CASE priority 
+                        WHEN 'high' THEN 1 
+                        WHEN 'medium' THEN 2 
+                        WHEN 'low' THEN 3 
+                    END,
+                    due_date ASC NULLS LAST
+            `, [userId]);
+
+            taskResult.rows.forEach(task => {
+                results.push({
+                    id: `task_${task.id}`,
+                    title: task.title,
+                    content: `Task: ${task.title}\nDescription: ${task.description}\nStatus: ${task.status}\nPriority: ${task.priority}\nDue: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}`,
+                    source: 'tasks',
+                    metadata: task
+                });
+            });
+
+            console.log(`📋 Found ${taskResult.rows.length} tasks for user ${userId}`);
+
+            // 2. Try to search chat history for context (optional)
+            try {
+                const chatResult = await pool.query(`
+                    SELECT message, response, created_at
+                    FROM chat_history 
+                    WHERE user_id = $1 
+                    ORDER BY created_at DESC 
+                    LIMIT 5
+                `, [userId]);
+
+                chatResult.rows.forEach(chat => {
+                    results.push({
+                        id: `chat_${chat.created_at}`,
+                        title: 'Previous conversation',
+                        content: `Q: ${chat.message}\nA: ${chat.response}`,
+                        source: 'chat_history',
+                        metadata: chat
+                    });
+                });
+
+                console.log(`💬 Found ${chatResult.rows.length} chat history items`);
+            } catch (chatError) {
+                console.log('💬 Chat history table not found (this is fine)');
+            }
+
+            return results;
         } catch (error) {
             console.error('❌ Database search error:', error);
             return [];
         }
     }
 
-    async hybridSearch(searchQuery, userId, limit = 5) {
+    async searchUserData(searchQuery, userId, limit = 5) {
         try {
-            // For now, just use database search
-            const dbResults = await this.searchDatabase(searchQuery, userId);
-            return dbResults.slice(0, limit);
+            // Search user's actual data (tasks and chat history)
+            const results = await this.searchDatabase(searchQuery, userId);
+            console.log(`🔍 Found ${results.length} relevant items for: "${searchQuery}"`);
+            return results.slice(0, limit);
         } catch (error) {
-            console.error('❌ Hybrid search error:', error);
+            console.error('❌ Search error:', error);
             return [];
-        }
-    }
-
-    async indexUserDocuments(userId) {
-        try {
-            // Get all user documents from database
-            const result = await pool.query(`
-        SELECT id, title, content, source, document_type, metadata
-        FROM documents 
-        WHERE user_id = $1
-      `, [userId]);
-
-            // Index each document in memory
-            for (const doc of result.rows) {
-                await this.addDocument(
-                    `${userId}_${doc.id}`,
-                    `${doc.title}\n${doc.content}`,
-                    {
-                        user_id: userId,
-                        doc_id: doc.id,
-                        source: doc.source,
-                        document_type: doc.document_type,
-                        ...doc.metadata
-                    }
-                );
-            }
-
-            console.log(`✅ Indexed ${result.rows.length} documents for user ${userId}`);
-        } catch (error) {
-            console.error('❌ Document indexing error:', error);
         }
     }
 
     async generateResponse(userQuery, userId) {
         try {
-            // Get relevant context
-            const context = await this.hybridSearch(userQuery, userId);
+            // Get relevant context from user's data
+            const context = await this.searchUserData(userQuery, userId);
 
             // Generate response using Gemini
             const response = await geminiService.answerQuestion(userQuery, context);
 
-            // Store conversation
-            await pool.query(`
-        INSERT INTO conversations (user_id, message, response, context)
-        VALUES ($1, $2, $3, $4)
-      `, [userId, userQuery, response, JSON.stringify(context)]);
+            // Store conversation (optional - if table exists)
+            try {
+                await pool.query(`
+                    INSERT INTO conversations (user_id, message, response, context)
+                    VALUES ($1, $2, $3, $4)
+                `, [userId, userQuery, response, JSON.stringify(context)]);
+            } catch (storeError) {
+                console.log('💾 Could not store conversation (table may not exist)');
+            }
 
             return {
                 response,

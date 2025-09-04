@@ -1,24 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import {
-  MessageSquare,
-  Calendar,
-  CheckSquare,
-  Bell,
-  Plus,
-  Send,
-  Bot,
-  User,
-  Sparkles,
-  Clock
-} from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import TasksCard from '@/components/dashboard/TasksCard';
+import AIAssistantCard from '@/components/dashboard/AIAssistantCard';
+import DailyBriefingCard from '@/components/dashboard/DailyBriefingCard';
+import NotificationsCard from '@/components/dashboard/NotificationsCard';
 
 interface Task {
   id: number;
@@ -50,23 +38,53 @@ interface Notification {
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string>('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [briefing, setBriefing] = useState<string>('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' });
-  const [chatInput, setChatInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  // Chat session management
+  const restoreOrCreateChatSession = () => {
+    const savedSessionId = localStorage.getItem('current_chat_session');
+    const savedMessages = localStorage.getItem('chat_messages');
+
+    if (savedSessionId && savedMessages) {
+      setCurrentSessionId(savedSessionId);
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        setChatMessages(parsedMessages);
+        console.log(`🔄 Restored chat session: ${savedSessionId} with ${parsedMessages.length} messages`);
+      } catch (error) {
+        console.error('Error parsing saved messages:', error);
+        createNewChatSession();
+      }
+    } else {
+      createNewChatSession();
+    }
+  };
+
+  const createNewChatSession = () => {
+    const newSessionId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentSessionId(newSessionId);
+    setChatMessages([]);
+
+    localStorage.setItem('current_chat_session', newSessionId);
+    localStorage.removeItem('chat_messages');
+    console.log(`🆕 New chat session created: ${newSessionId}`);
+  };
 
   useEffect(() => {
     // Initialize Socket.IO connection
     const socketInstance = io(API_URL);
     setSocket(socketInstance);
 
+    // Restore existing chat session or create new one
+    restoreOrCreateChatSession();
+
     // Load initial data
     loadTasks();
-    loadChatHistory();
     loadNotifications();
     loadTodaysBriefing();
 
@@ -90,6 +108,13 @@ export default function Dashboard() {
     };
   }, [API_URL]);
 
+  // Save chat messages to localStorage whenever they change
+  useEffect(() => {
+    if (chatMessages.length > 0) {
+      localStorage.setItem('chat_messages', JSON.stringify(chatMessages));
+    }
+  }, [chatMessages]);
+
   const loadTasks = async () => {
     try {
       const response = await fetch(`${API_URL}/api/tasks`);
@@ -99,25 +124,6 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error loading tasks:', error);
-    }
-  };
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/chat/history`);
-      const data = await response.json();
-      if (data.success) {
-        const formattedMessages = data.data.map((item: any) => ({
-          id: Date.now().toString() + Math.random(),
-          message: item.message,
-          response: item.response,
-          timestamp: item.created_at,
-          isUser: false
-        }));
-        setChatMessages(formattedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
     }
   };
 
@@ -137,8 +143,8 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${API_URL}/api/briefing/today`);
       const data = await response.json();
-      if (data.success && data.data) {
-        setBriefing(JSON.parse(data.data.content).briefing);
+      if (data.success && data.data.content) {
+        setBriefing(data.data.content);
       }
     } catch (error) {
       console.error('Error loading briefing:', error);
@@ -146,7 +152,6 @@ export default function Dashboard() {
   };
 
   const generateBriefing = async () => {
-    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/briefing/generate`, {
         method: 'POST',
@@ -155,84 +160,21 @@ export default function Dashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        setBriefing(data.data.briefing);
+        setBriefing(data.briefing);
       }
     } catch (error) {
       console.error('Error generating briefing:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const createTask = async () => {
-    if (!newTask.title.trim()) return;
-
-    try {
-      const response = await fetch(`${API_URL}/api/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTask)
-      });
-      const data = await response.json();
-      if (data.success) {
-        setNewTask({ title: '', description: '', priority: 'medium' });
-      }
-    } catch (error) {
-      console.error('Error creating task:', error);
-    }
+  const handleTaskCreate = (newTask: Task) => {
+    setTasks(prev => [newTask, ...prev]);
   };
 
-  const sendChatMessage = async () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = {
-      id: Date.now().toString(),
-      message: chatInput,
-      response: '',
-      timestamp: new Date().toISOString(),
-      isUser: true
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    setChatInput('');
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: chatInput, userId: 1 })
-      });
-      const data = await response.json();
-      if (data.success) {
-        const aiMessage = {
-          id: (Date.now() + 1).toString(),
-          message: '',
-          response: data.data.response,
-          timestamp: new Date().toISOString(),
-          isUser: false
-        };
-        setChatMessages(prev => [...prev, aiMessage]);
-      }
-    } catch (error) {
-      console.error('Error sending chat message:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createNewChat = () => {
-    setChatMessages([]);
-    setChatInput('');
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
+  const handleTaskUpdate = (taskId: number, updates: any) => {
+    setTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
   };
 
   return (
@@ -248,222 +190,42 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daily Briefing */}
-          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-yellow-500" />
-                Daily Briefing
-              </CardTitle>
-              <CardDescription className="text-zinc-400">
-                AI-generated insights and priorities for today
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {briefing ? (
-                <div className="prose max-w-none">
-                  <pre className="whitespace-pre-wrap text-sm text-zinc-200 font-sans">
-                    {briefing}
-                  </pre>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-zinc-500 mb-4">No briefing generated yet</p>
-                  <Button
-                    onClick={generateBriefing}
-                    disabled={loading}
-                    className="bg-white text-black hover:bg-zinc-200"
-                  >
-                    {loading ? 'Generating...' : 'Generate Daily Briefing'}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-2">
+            <DailyBriefingCard
+              briefing={briefing}
+              onGenerateBriefing={generateBriefing}
+              API_URL={API_URL}
+            />
+          </div>
 
-          {/* Quick Stats */}
-          <Card className="bg-zinc-950 border border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-500" />
-                Quick Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Total Tasks</span>
-                <Badge variant="secondary" className="bg-zinc-800 text-zinc-200">{tasks.length}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-400">High Priority</span>
-                <Badge className="bg-red-500">
-                  {tasks.filter(t => t.priority === 'high').length}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Unread Notifications</span>
-                <Badge className="bg-orange-500">
-                  {notifications.filter(n => !n.read).length}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Quick Stats/Notifications */}
+          <div className="lg:col-span-1">
+            <NotificationsCard
+              notifications={notifications}
+              API_URL={API_URL}
+            />
+          </div>
 
-          {/* Tasks Management */}
-          <Card className="bg-zinc-950 border border-zinc-800 h-[600px] flex flex-col">
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="text-white flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-green-500" />
-                Tasks
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
-              <div className="flex flex-col h-full space-y-3">
-                <div className="space-y-3 flex-shrink-0">
-                  <Input
-                    placeholder="Task title..."
-                    value={newTask.title}
-                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
-                  />
-                  <Textarea
-                    placeholder="Description (optional)..."
-                    value={newTask.description}
-                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 min-h-[50px] max-h-[50px] resize-none"
-                  />
-                  <div className="flex gap-2">
-                    <select
-                      value={newTask.priority}
-                      onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                      className="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-white text-sm"
-                    >
-                      <option value="low">Low Priority</option>
-                      <option value="medium">Medium Priority</option>
-                      <option value="high">High Priority</option>
-                    </select>
-                    <Button onClick={createTask} size="sm" className="bg-green-600 hover:bg-green-700">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+          {/* Tasks */}
+          <div className="lg:col-span-1">
+            <TasksCard
+              tasks={tasks}
+              onTaskCreate={handleTaskCreate}
+              onTaskUpdate={handleTaskUpdate}
+              API_URL={API_URL}
+            />
+          </div>
 
-                <div className="flex-1 overflow-y-auto min-h-0 pr-2">
-                  <div className="space-y-2">
-                    {tasks.slice(0, 10).map((task) => (
-                      <div key={task.id} className="p-2.5 bg-zinc-900 rounded-lg border border-zinc-800">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-white font-medium text-sm truncate">{task.title}</h4>
-                            {task.description && (
-                              <p className="text-zinc-400 text-xs mt-1 line-clamp-1">{task.description}</p>
-                            )}
-                          </div>
-                          <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)} ml-2 mt-1 flex-shrink-0`} />
-                        </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <Badge variant="outline" className="text-xs border-zinc-700 text-zinc-300 px-2 py-0.5">
-                            {task.status}
-                          </Badge>
-                          {task.due_date && (
-                            <span className="text-xs text-zinc-400 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {new Date(task.due_date).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Chat */}
-          <Card className="lg:col-span-2 bg-zinc-950 border border-zinc-800 h-[600px] flex flex-col overflow-hidden">
-            <CardHeader className="flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-purple-500" />
-                  <CardTitle className="text-white">AI Assistant</CardTitle>
-                </div>
-                <Button
-                  onClick={createNewChat}
-                  size="sm"
-                  variant="outline"
-                  className="bg-transparent border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                  title="Start new chat"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <CardDescription className="text-zinc-400">
-                Chat with your AI copilot for insights and assistance
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-4 overflow-hidden">
-              <div className="flex flex-col h-full overflow-hidden">
-                <div className="flex-1 overflow-y-auto space-y-4 bg-zinc-900 rounded-lg p-4 border border-zinc-800 mb-3 min-h-0">
-                  {chatMessages.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-zinc-500 text-center">
-                        Start a conversation with your AI assistant
-                      </p>
-                    </div>
-                  ) : (
-                    chatMessages.map((msg) => (
-                      msg.isUser ? (
-                        <div key={msg.id} className="flex justify-end">
-                          <div className="flex items-start gap-3 max-w-[70%]">
-                            <div className="bg-blue-600 text-white p-3 rounded-lg text-sm break-words">
-                              {msg.message}
-                            </div>
-                            <User className="h-6 w-6 text-blue-500 mt-1 flex-shrink-0" />
-                          </div>
-                        </div>
-                      ) : (
-                        <div key={msg.id} className="flex justify-start">
-                          <div className="flex items-start gap-3 max-w-[85%]">
-                            <Bot className="h-6 w-6 text-green-500 mt-1 flex-shrink-0" />
-                            <div className="bg-zinc-800 text-zinc-200 p-3 rounded-lg text-sm break-words leading-relaxed">
-                              {msg.response}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    ))
-                  )}
-                  {loading && (
-                    <div className="flex justify-start">
-                      <div className="flex items-start gap-3">
-                        <Bot className="h-6 w-6 text-green-500 mt-1 flex-shrink-0" />
-                        <div className="bg-zinc-800 text-zinc-200 p-3 rounded-lg text-sm">
-                          AI is thinking...
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-3 flex-shrink-0 pt-1">
-                  <Input
-                    placeholder="Ask me anything..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
-                    className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500"
-                  />
-                  <Button
-                    onClick={sendChatMessage}
-                    disabled={loading || !chatInput.trim()}
-                    className="bg-white text-black hover:bg-zinc-200"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* AI Assistant */}
+          <div className="lg:col-span-2">
+            <AIAssistantCard
+              chatMessages={chatMessages}
+              setChatMessages={setChatMessages}
+              currentSessionId={currentSessionId}
+              onCreateNewChat={createNewChatSession}
+              API_URL={API_URL}
+            />
+          </div>
         </div>
       </div>
     </div>
