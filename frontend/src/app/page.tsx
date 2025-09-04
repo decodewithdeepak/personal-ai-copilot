@@ -205,7 +205,7 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daily Briefing */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 h-[500px]">
             <DailyBriefingCard
               briefing={briefing}
               onGenerateBriefing={generateBriefing}
@@ -214,7 +214,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Stats/Notifications */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 h-[500px]">
             <NotificationsCard
               notifications={notifications}
               API_URL={API_URL}
@@ -223,7 +223,7 @@ export default function Dashboard() {
           </div>
 
           {/* Tasks */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 h-[600px]">
             <TasksCard
               tasks={tasks}
               onTaskCreate={handleTaskCreate}
@@ -233,7 +233,7 @@ export default function Dashboard() {
           </div>
 
           {/* AI Assistant */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 h-[600px]">
             <AIAssistantCard
               chatMessages={chatMessages}
               setChatMessages={setChatMessages}
