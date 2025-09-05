@@ -34,7 +34,7 @@ export function WeatherCard({ API_URL }: WeatherCardProps) {
     const fetchWeather = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/api/weather/current`);
+            const response = await fetch(`${API_URL}/api/weather`);
             const data = await response.json();
             if (data.success) {
                 setWeather(data.weather);

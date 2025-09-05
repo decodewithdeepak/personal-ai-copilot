@@ -316,7 +316,7 @@ export default function Dashboard() {
               />
             </div>
             <div className="md:col-span-2">
-              <IntegrationsCard />
+              <IntegrationsCard API_URL={API_URL} />
             </div>
           </div>
         </div>

@@ -36,7 +36,11 @@ interface IntegrationData {
     health: 'healthy' | 'partial' | 'unhealthy';
 }
 
-const IntegrationsCard = () => {
+interface IntegrationsCardProps {
+    API_URL: string;
+}
+
+const IntegrationsCard = ({ API_URL }: IntegrationsCardProps) => {
     const [integrations, setIntegrations] = useState<IntegrationData | null>(null);
     const [loading, setLoading] = useState(true);
     const [testing, setTesting] = useState(false);
@@ -47,7 +51,7 @@ const IntegrationsCard = () => {
 
     const fetchIntegrationStatus = async () => {
         try {
-            const response = await fetch('/api/integrations/status');
+            const response = await fetch(`${API_URL}/api/integrations/status`);
             const data = await response.json();
             if (data.success) {
                 setIntegrations(data.data);
@@ -62,7 +66,7 @@ const IntegrationsCard = () => {
     const testNotifications = async () => {
         setTesting(true);
         try {
-            const response = await fetch('/api/integrations/test', { method: 'POST' });
+            const response = await fetch(`${API_URL}/api/integrations/test`, { method: 'POST' });
             const data = await response.json();
             if (data.success) {
                 alert('Test notifications sent successfully!');
