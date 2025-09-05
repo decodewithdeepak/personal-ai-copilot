@@ -9,7 +9,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 const researchAgent = new ResearchAgent(model);
 
 // Get current weather
-router.get('/current', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         console.log('🌤️ Fetching current weather...');
         const weatherData = await researchAgent.getWeatherContext();
