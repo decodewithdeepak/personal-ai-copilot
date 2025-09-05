@@ -35,6 +35,8 @@ app.use((req, res, next) => {
 });
 
 // Routes
+const integrationsRoutes = require('./routes/integrations');
+
 app.use('/api/chat', chatRoutes);
 app.use('/api/briefing', briefingRoutes);
 app.use('/api/tasks', tasksRoutes);
@@ -42,6 +44,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/integrations', integrationsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

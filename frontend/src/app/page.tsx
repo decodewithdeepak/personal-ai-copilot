@@ -7,6 +7,7 @@ import TasksCard from '@/components/dashboard/TasksCard';
 import AIAssistantCard from '@/components/dashboard/AIAssistantCard';
 import DailyBriefingCard from '@/components/dashboard/DailyBriefingCard';
 import NotificationsCard from '@/components/dashboard/NotificationsCard';
+import IntegrationsCard from '@/components/dashboard/IntegrationsCard';
 import { WeatherCard } from '@/components/dashboard/WeatherCard';
 import { NewsCard } from '@/components/dashboard/NewsCard';
 import AutomationCard from '@/components/dashboard/AutomationCard';
@@ -306,12 +307,17 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Automation Row */}
-          <div className="lg:col-span-1">
-            <AutomationCard
-              API_URL={API_URL}
-              onAutomationComplete={handleAutomationComplete}
-            />
+          {/* Automation and Integrations Row */}
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <AutomationCard
+                API_URL={API_URL}
+                onAutomationComplete={handleAutomationComplete}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <IntegrationsCard />
+            </div>
           </div>
         </div>
       </div>

@@ -1,0 +1,222 @@
+{
+    "name": "Smart Task & Event Manager",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "*/15 * * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Check Every 15 Minutes",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "frequent-check"
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:3001/api/tasks",
+                "options": {
+                    "qs": {
+                        "userId": "1",
+                        "status": "pending,overdue"
+                    }
+                }
+            },
+            "name": "Get Critical Tasks",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-critical-tasks"
+        },
+        {
+            "parameters": {
+                "jsCode": "const tasks = $node['Get Critical Tasks'].json.data || [];\nconst now = new Date();\nconst urgentTasks = [];\nconst dueTodayTasks = [];\nconst overdueVasks = [];\n\ntasks.forEach(task => {\n  if (task.due_date) {\n    const dueDate = new Date(task.due_date);\n    const timeDiff = dueDate.getTime() - now.getTime();\n    const hoursDiff = timeDiff / (1000 * 60 * 60);\n    \n    if (hoursDiff < 0) {\n      overdueVasks.push({...task, hoursOverdue: Math.abs(hoursDiff)});\n    } else if (hoursDiff <= 2) {\n      urgentTasks.push({...task, hoursLeft: hoursDiff});\n    } else if (hoursDiff <= 24) {\n      dueTodayTasks.push({...task, hoursLeft: hoursDiff});\n    }\n  }\n});\n\nconst needsAlert = urgentTasks.length > 0 || overdueVasks.length > 0;\n\nif (needsAlert) {\n  let alertMessage = \"🚨 **URGENT TASK ALERT** 🚨\\n\\n\";\n  \n  if (overdueVasks.length > 0) {\n    alertMessage += \"⏰ **OVERDUE TASKS:**\\n\";\n    overdueVasks.forEach(task => {\n      alertMessage += `• ${task.title} (${Math.round(task.hoursOverdue)}h overdue)\\n`;\n    });\n    alertMessage += \"\\n\";\n  }\n  \n  if (urgentTasks.length > 0) {\n    alertMessage += \"🔥 **DUE IN 2 HOURS:**\\n\";\n    urgentTasks.forEach(task => {\n      alertMessage += `• ${task.title} (${Math.round(task.hoursLeft)}h left)\\n`;\n    });\n  }\n  \n  return {\n    needsAlert: true,\n    alertMessage,\n    urgentCount: urgentTasks.length,\n    overdueCount: overdueVasks.length,\n    allTasks: [...overdueVasks, ...urgentTasks]\n  };\n}\n\nreturn {\n  needsAlert: false,\n  message: \"All tasks are on track! 👍\"\n};"
+            },
+            "name": "Analyze Task Urgency",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                680,
+                300
+            ],
+            "id": "analyze-urgency"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose"
+                    },
+                    "conditions": [
+                        {
+                            "id": "1",
+                            "leftValue": "={{ $json.needsAlert }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equal"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "name": "Needs Alert?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                900,
+                300
+            ],
+            "id": "needs-alert-check"
+        },
+        {
+            "parameters": {
+                "channel": "#urgent-alerts",
+                "text": "={{ $node['Analyze Task Urgency'].json.alertMessage }}",
+                "otherOptions": {
+                    "mrkdwn": true
+                }
+            },
+            "name": "Slack Alert",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.1,
+            "position": [
+                1120,
+                200
+            ],
+            "id": "slack-alert"
+        },
+        {
+            "parameters": {
+                "webhook": "YOUR_DISCORD_WEBHOOK_URL",
+                "text": "={{ $node['Analyze Task Urgency'].json.alertMessage }}",
+                "options": {
+                    "username": "AI Copilot - URGENT",
+                    "avatar_url": "https://via.placeholder.com/64/ff0000/ffffff?text=⚠️"
+                }
+            },
+            "name": "Discord Alert",
+            "type": "n8n-nodes-base.discord",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ],
+            "id": "discord-alert"
+        },
+        {
+            "parameters": {
+                "fromEmail": "urgent@ai-copilot.com",
+                "toEmail": "your-email@gmail.com",
+                "subject": "🚨 URGENT: Task Deadline Alert",
+                "emailType": "html",
+                "message": "<div style='background: #ff4757; color: white; padding: 20px; border-radius: 10px;'><h1>🚨 URGENT TASK ALERT</h1><p>{{ $node['Analyze Task Urgency'].json.alertMessage }}</p></div>"
+            },
+            "name": "Email Alert",
+            "type": "n8n-nodes-base.emailSend",
+            "typeVersion": 2,
+            "position": [
+                1120,
+                400
+            ],
+            "id": "email-alert"
+        },
+        {
+            "parameters": {
+                "url": "https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
+                "options": {
+                    "bodyContentType": "json",
+                    "jsonBody": "{\n  \"chat_id\": \"YOUR_CHAT_ID\",\n  \"text\": \"{{ $node['Analyze Task Urgency'].json.alertMessage }}\",\n  \"parse_mode\": \"Markdown\"\n}",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                },
+                "method": "POST"
+            },
+            "name": "Telegram Alert",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1120,
+                500
+            ],
+            "id": "telegram-alert"
+        }
+    ],
+    "connections": {
+        "Check Every 15 Minutes": {
+            "main": [
+                [
+                    {
+                        "node": "Get Critical Tasks",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Critical Tasks": {
+            "main": [
+                [
+                    {
+                        "node": "Analyze Task Urgency",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Analyze Task Urgency": {
+            "main": [
+                [
+                    {
+                        "node": "Needs Alert?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Needs Alert?": {
+            "main": [
+                [
+                    {
+                        "node": "Slack Alert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Discord Alert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Email Alert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Telegram Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

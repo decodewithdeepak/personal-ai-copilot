@@ -1,0 +1,256 @@
+{
+    "name": "GitHub Integration & Project Sync",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "github-webhook",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "name": "GitHub Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "webhookId": "github-webhook-id",
+            "id": "github-webhook"
+        },
+        {
+            "parameters": {
+                "jsCode": "const payload = $json;\nconst eventType = $node['GitHub Webhook'].json.headers['x-github-event'];\n\nlet taskData = null;\nlet notification = null;\n\nswitch(eventType) {\n  case 'issues':\n    if (payload.action === 'opened') {\n      taskData = {\n        title: `GitHub Issue: ${payload.issue.title}`,\n        description: payload.issue.body || 'No description provided',\n        priority: payload.issue.labels.some(l => l.name.includes('urgent')) ? 'high' : 'medium',\n        source: 'github',\n        external_id: payload.issue.id,\n        due_date: null, // Extract from issue if has due date label\n        userId: 1\n      };\n      notification = `🐛 New GitHub issue created: \"${payload.issue.title}\" in ${payload.repository.name}`;\n    } else if (payload.action === 'closed') {\n      notification = `✅ GitHub issue resolved: \"${payload.issue.title}\" in ${payload.repository.name}`;\n    }\n    break;\n    \n  case 'pull_request':\n    if (payload.action === 'opened') {\n      taskData = {\n        title: `Review PR: ${payload.pull_request.title}`,\n        description: `Code review needed for PR #${payload.pull_request.number}`,\n        priority: 'medium',\n        source: 'github',\n        external_id: payload.pull_request.id,\n        due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days\n        userId: 1\n      };\n      notification = `👀 New PR needs review: \"${payload.pull_request.title}\" in ${payload.repository.name}`;\n    } else if (payload.action === 'closed' && payload.pull_request.merged) {\n      notification = `🎉 PR merged: \"${payload.pull_request.title}\" in ${payload.repository.name}`;\n    }\n    break;\n    \n  case 'push':\n    if (payload.ref === 'refs/heads/main' || payload.ref === 'refs/heads/master') {\n      notification = `🚀 New deployment: ${payload.commits.length} commits pushed to ${payload.repository.name}`;\n    }\n    break;\n}\n\nreturn {\n  eventType,\n  taskData,\n  notification,\n  repository: payload.repository?.name,\n  actor: payload.sender?.login\n};"
+            },
+            "name": "Process GitHub Event",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                460,
+                300
+            ],
+            "id": "process-github-event"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose"
+                    },
+                    "conditions": [
+                        {
+                            "id": "1",
+                            "leftValue": "={{ $json.taskData }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "isNotEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "name": "Should Create Task?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                680,
+                200
+            ],
+            "id": "should-create-task"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose"
+                    },
+                    "conditions": [
+                        {
+                            "id": "1",
+                            "leftValue": "={{ $json.notification }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "isNotEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            },
+            "name": "Should Notify?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                680,
+                400
+            ],
+            "id": "should-notify"
+        },
+        {
+            "parameters": {
+                "url": "http://host.docker.internal:3001/api/tasks",
+                "options": {
+                    "bodyContentType": "json",
+                    "jsonBody": "={{ JSON.stringify($node['Process GitHub Event'].json.taskData) }}",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    }
+                },
+                "method": "POST"
+            },
+            "name": "Create Task",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                200
+            ],
+            "id": "create-task"
+        },
+        {
+            "parameters": {
+                "channel": "#github-activity",
+                "text": "={{ $node['Process GitHub Event'].json.notification }}",
+                "otherOptions": {
+                    "mrkdwn": true
+                }
+            },
+            "name": "Notify Slack",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.1,
+            "position": [
+                900,
+                350
+            ],
+            "id": "notify-slack"
+        },
+        {
+            "parameters": {
+                "webhook": "YOUR_DISCORD_WEBHOOK_URL",
+                "text": "={{ $node['Process GitHub Event'].json.notification }}",
+                "options": {
+                    "username": "GitHub Bot",
+                    "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+                }
+            },
+            "name": "Notify Discord",
+            "type": "n8n-nodes-base.discord",
+            "typeVersion": 1,
+            "position": [
+                900,
+                450
+            ],
+            "id": "notify-discord"
+        },
+        {
+            "parameters": {
+                "responseCode": 200,
+                "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Event processed successfully\",\n  \"taskCreated\": {{ $json.taskData ? 'true' : 'false' }},\n  \"notificationSent\": {{ $json.notification ? 'true' : 'false' }}\n}"
+            },
+            "name": "Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ],
+            "id": "webhook-response"
+        }
+    ],
+    "connections": {
+        "GitHub Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Process GitHub Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process GitHub Event": {
+            "main": [
+                [
+                    {
+                        "node": "Should Create Task?",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Should Notify?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Create Task?": {
+            "main": [
+                [
+                    {
+                        "node": "Create Task",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Notify?": {
+            "main": [
+                [
+                    {
+                        "node": "Notify Slack",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Notify Discord",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Task": {
+            "main": [
+                [
+                    {
+                        "node": "Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Notify Slack": {
+            "main": [
+                [
+                    {
+                        "node": "Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Notify Discord": {
+            "main": [
+                [
+                    {
+                        "node": "Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -3,7 +3,7 @@ services:
     image: docker.n8n.io/n8nio/n8n
     container_name: personal_ai_copilot_n8n
     restart: always
-    env_file: .env
+    env_file: ../.env
     environment:
       - DB_TYPE=sqlite
       - N8N_LOG_LEVEL=info
